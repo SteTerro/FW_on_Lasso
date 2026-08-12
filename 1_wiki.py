@@ -285,9 +285,9 @@ def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
             del weights[key]
 
     # NORMALIZZAZIONE FINALE 
-    somma = sum(weights.values())
-    for key in weights.keys():
-        weights[key] /= somma
+    # somma = sum(weights.values())
+    # for key in weights.keys():
+    #     weights[key] /= somma
 
     cpu_time = time() - t0
     return x, history_loss, history_gap, history_time, history_sparsity
@@ -317,9 +317,9 @@ def pairwise_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
 
     for k in range(max_iters):
         # 1. Normalizzazione di sicurezza
-        somma = sum(weights.values())
-        for key in weights.keys():
-            weights[key] /= somma
+        # somma = sum(weights.values())
+        # for key in weights.keys():
+        #     weights[key] /= somma
 
         grad = compute_gradient(X, y, x)
         history_loss.append(compute_loss(X, y, x))
