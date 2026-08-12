@@ -1,0 +1,50 @@
+# =============================
+# FIRST BLOCK: import libraries
+# =============================
+
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+#from sklearn.datasets import make_regression
+import json
+from time import time
+
+# ============================
+# STEP 1: LASSO implememtation
+# ============================
+
+def compute_loss(X, y, x_weights):
+    """
+    Compute the value of the objective function (Least Squares).
+    Parameters:
+    X : numpy array of shape (n_samples, n_features)
+    y : numpy array of shape (n_samples,)
+    x_weights : numpy array of shape (n_features,) - current coefficients
+    Returns:
+    loss : float
+    """
+    # (X * x) - y
+    residual = (X @ x_weights) - y
+    
+    # 0.5 * L2_norm_squared
+    loss = 0.5 * np.sum(residual ** 2)
+    return loss
+
+def compute_gradient(X, y, x_weights):
+    """
+    Compute the gradient vector of the objective function.
+    
+    Parameters:
+    X : numpy array of shape (n_samples, n_features)
+    y : numpy array of shape (n_samples,)
+    x_weights : numpy array of shape (n_features,) - current coefficients
+    
+    Returns:
+    grad : numpy array of shape (n_features,)
+    """
+    # (X * x) - y
+    residual = (X @ x_weights) - y
+    
+    # Gradient: X_transposed multiplied by the residual
+    grad = X.T @ residual
+    return grad
