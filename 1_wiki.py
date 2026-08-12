@@ -393,7 +393,7 @@ def pairwise_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
 # =============================================
 print("1. Caricamento del dataset Math Essentials dal file JSON locale...")
 
-file_name = 'wikivital_mathematics.json' 
+file_name = 'data/wikivital_mathematics.json' 
 
 try:
     with open(file_name, 'r') as file:
@@ -516,7 +516,7 @@ plt.yscale('log')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('1_loss_convergence.png', dpi=300) 
+plt.savefig('image/1_loss_convergence_wiki.png', dpi=300) 
 
 # ---------------------------------------------------------
 # FIGURA 2: Duality Gap vs Iterazioni
@@ -533,7 +533,7 @@ plt.yscale('log')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('2_duality_gap.png', dpi=300)
+plt.savefig('image/2_duality_gap_wiki.png', dpi=300)
 
 # ---------------------------------------------------------
 # FIGURA 3: Sparsità (Feature Attive) vs Iterazioni
@@ -549,7 +549,7 @@ plt.ylabel('Numero di Feature Non Nulle')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('3_sparsity.png', dpi=300)
+plt.savefig('image/3_sparsity_wiki.png', dpi=300)
 
 # ---------------------------------------------------------
 # FIGURA 4: Duality Gap vs CPU Time (Efficienza)
@@ -566,7 +566,7 @@ plt.yscale('log')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('4_cpu_time.png', dpi=300)
+plt.savefig('image/4_cpu_time_wiki.png', dpi=300)
 
 # Mostra tutte le finestre create a schermo contemporaneamente
 plt.show()
@@ -613,7 +613,7 @@ axs_hist[2].grid(axis='y', linestyle='--', alpha=0.7)
 
 fig_hist.suptitle('Distribuzione dei Coefficienti Non Nulli (Magnitudo dei Pesi)', fontsize=14, fontweight='bold')
 plt.tight_layout()
-plt.savefig('5_weight_distribution.png', dpi=300)
+plt.savefig('image/5_weight_distribution_wiki.png', dpi=300)
 plt.show()
 
 """
