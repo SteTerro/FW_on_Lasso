@@ -533,7 +533,7 @@ plt.yscale('log')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('2_duality_gap.png', dpi=300)
+plt.savefig('1_duality_gap.png', dpi=300)
 
 # ---------------------------------------------------------
 # FIGURA 3: Sparsità (Feature Attive) vs Iterazioni
@@ -549,7 +549,7 @@ plt.ylabel('Numero di Feature Non Nulle')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('3_sparsity.png', dpi=300)
+plt.savefig('1_sparsity.png', dpi=300)
 
 # ---------------------------------------------------------
 # FIGURA 4: Duality Gap vs CPU Time (Efficienza)
@@ -566,7 +566,7 @@ plt.yscale('log')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('4_cpu_time.png', dpi=300)
+plt.savefig('1_cpu_time.png', dpi=300)
 
 # Mostra tutte le finestre create a schermo contemporaneamente
 plt.show()
@@ -613,7 +613,7 @@ axs_hist[2].grid(axis='y', linestyle='--', alpha=0.7)
 
 fig_hist.suptitle('Distribuzione dei Coefficienti Non Nulli (Magnitudo dei Pesi)', fontsize=14, fontweight='bold')
 plt.tight_layout()
-plt.savefig('5_weight_distribution.png', dpi=300)
+plt.savefig('1_weight_distribution.png', dpi=300)
 plt.show()
 
 """

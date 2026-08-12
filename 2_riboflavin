@@ -6,8 +6,8 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 #from sklearn.datasets import make_regression
-import json
 from time import time
+import matplotlib.pyplot as plt
 
 # ============================
 # STEP 1: LASSO implememtation
@@ -48,3 +48,477 @@ def compute_gradient(X, y, x_weights):
     # Gradient: X_transposed multiplied by the residual
     grad = X.T @ residual
     return grad
+
+# ===============================================
+# STEP 2: Frank_Wolfe and variants implementation
+# ===============================================
+
+# 1. linear minimization oracle for L1 ball
+def lmo_l1(gradient, tau):
+    """
+    Linear Minimization Oracle (LMO) for ball L1.
+    Find the optimal atom/vertex s_t to minimize the dot product with gradient.
+    """
+    # s = zero vector of the same shape as gradient
+    s = np.zeros_like(gradient)
+
+    # find the index of the feature with the maximum absolute gradient
+    idx_max = np.argmax(np.abs(gradient))
+
+    # we assign the value tau to that index, with the OPPOSITE sign of the gradient to point in the 
+    # direction of steepest descent
+    s[idx_max] = -np.sign(gradient[idx_max]) * tau
+    
+    return s
+
+# 2. standard FW for LASSO
+def frank_wolfe_lasso(X, y, tau, max_iter=1000, tol=1e-4):
+    """
+    Standard Frank-Wolfe algorithm for the LASSO problem.
+    """
+    n_samples, n_features = X.shape
+    # we start wiht the center of the L1 ball is the zero vector, 
+    # which is also the point of maximum sparsity
+    x_t = np.zeros(n_features) 
+
+    history_loss, history_gap, history_time, history_sparsity = [], [], [], []
+    t0 = time()
+    
+    for t in range(max_iter):
+        # 1. current gradient computation
+        grad = compute_gradient(X, y, x_t)
+        
+        # 2. oracle call (find the vertex s_t)
+        s_t = lmo_l1(grad, tau)
+        
+        # 3. update direction
+        d_t = s_t - x_t
+        
+        # 4. Compute the Frank-Wolfe Duality Gap
+        # formula: <grad, x_t - s_t> che equivale a <grad, -d_t>
+        gap = np.dot(grad, -d_t)
+        
+        # Save the metrics for the final plots
+        history_loss.append(compute_loss(X, y, x_t))
+        history_gap.append(gap)
+        history_time.append(time() - t0)
+        history_sparsity.append(np.sum(np.abs(x_t) > 1e-8))
+        
+        # 5. Stopping criterion: if the gap is smaller than the tolerance, we stop
+        if gap <= tol:
+            print(f"Convergenza raggiunta all'iterazione {t} con gap: {gap:.6f}")
+            break
+            
+        # 6. Exact Line Search
+        # Find the optimal step size gamma by minimizing analytically the parabola
+        Xd = X @ d_t
+        # to avoid division by zero
+        gamma_ottimale = gap / (np.sum(Xd ** 2) + 1e-10) 
+        gamma = np.clip(gamma_ottimale, 0.0, 1.0)
+        
+        # 7. Update the coefficients
+        x_t = x_t + gamma * d_t
+        
+    return x_t, history_loss, history_gap, history_time, history_sparsity
+
+
+# 3. Away-step Frank-Wolfe for LASSO
+def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
+    n_samples, n_features = X.shape
+    x = np.zeros(n_features)
+
+    grad_0 = compute_gradient(X, y, x)
+    start_idx = np.argmax(np.abs(grad_0))
+    start_sign = -np.sign(grad_0[start_idx])
+
+    x[start_idx] = start_sign * tau
+
+    # Active Set (dict: key = index, value = sign)
+    weights = {(start_idx, start_sign): 1.0}
+
+    history_loss, history_gap, history_time, history_sparsity = [], [], [], []
+    t0 = time()
+
+    for k in range(max_iters):
+        grad = compute_gradient(X, y, x)
+
+        # FW VERTEX
+        s_idx = np.argmax(np.abs(grad))
+        s_sign = -np.sign(grad[s_idx])
+        s_vec = np.zeros(n_features)
+        s_vec[s_idx] = s_sign * tau
+
+        # AWAY VERTEX 
+        max_val = -np.inf
+        v_key = None
+        for key in weights.keys():
+            idx, sign = key
+            val = grad[idx] * sign * tau
+            if val > max_val:
+                max_val = val
+                v_key = key
+
+        v_vec = np.zeros(n_features)
+        v_idx, v_sign = v_key
+        v_vec[v_idx] = v_sign * tau
+
+        # STOPPING CONDITION
+        fw_gap = -np.dot(grad, s_vec - x)
+
+        history_loss.append(compute_loss(X, y, x))
+        history_gap.append(fw_gap)
+        history_time.append(time() - t0)            
+        history_sparsity.append(np.sum(np.abs(x) > 1e-8))
+
+        if fw_gap <= tolerance:
+            print(f"AFW Convergenza raggiunta all'iterazione {k} con gap: {fw_gap:.6f}")
+            break
+
+        # direction and overflow protection
+        away_gap = -np.dot(grad, x - v_vec)
+
+        # protection: if there is only one vertex, or if the FW gap is larger, take FW step
+        if len(weights) == 1 or fw_gap >= away_gap:
+            direction = s_vec - x
+            alpha_max = 1.0
+            is_fw_step = True
+        else:
+            direction = x - v_vec
+            current_weight = weights[v_key]
+
+            denom = max(1.0 - current_weight, 1e-12)
+            alpha_max = current_weight / denom
+            is_fw_step = False
+
+        # EXACT LINE SEARCH
+        if np.max(np.abs(direction)) < 1e-14:
+            alpha = 0.0
+        else:
+            Xd = X @ direction
+            den = np.sum(Xd ** 2)
+            if den < 1e-10:
+                alpha = 0.0
+            else:
+                opt_alpha = -np.dot(grad, direction) / den
+                alpha = np.clip(opt_alpha, 0.0, alpha_max)
+
+        # UPDATE x
+        x = x + alpha * direction
+
+        # UPDATE ACTIVE SET
+        if is_fw_step:
+            for key in list(weights.keys()):
+                weights[key] = (1 - alpha) * weights[key]
+            s_key = (s_idx, s_sign)
+            weights[s_key] = weights.get(s_key, 0.0) + alpha
+        else:
+            for key in list(weights.keys()):
+                if key == v_key:
+                    weights[key] = (1 + alpha) * weights[key] - alpha
+                else:
+                    weights[key] = (1 + alpha) * weights[key]
+
+        # DROP STEP
+        keys_to_drop = [key for key, val in weights.items() if val < 1e-9]
+        for key in keys_to_drop:
+            del weights[key]
+
+    # final normalization of weights to ensure they sum to 1 
+    sum_weights = sum(weights.values())
+    for key in weights.keys():
+        weights[key] /= sum_weights
+
+    cpu_time = time() - t0
+    return x, history_loss, history_gap, history_time, history_sparsity
+
+
+# 4. Pairwise Frank-Wolfe for LASSO
+def pairwise_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
+    """
+    Pairwise Frank-Wolfe optimized with dictionary for the LASSO problem.
+    """
+    n_samples, n_features = X.shape
+    x = np.zeros(n_features)
+    
+    # Initialize the active set with the first vertex
+    grad_0 = compute_gradient(X, y, x)
+    start_idx = np.argmax(np.abs(grad_0))
+    start_sign = -np.sign(grad_0[start_idx])
+    
+    x[start_idx] = start_sign * tau
+    weights = {(start_idx, start_sign): 1.0} 
+
+    history_loss, history_gap, history_time, history_sparsity = [], [], [], []
+    t0 = time()
+
+    for k in range(max_iters):
+        # 1. NORMALIZATION OF WEIGHTS 
+        sum_weights = sum(weights.values())
+        for key in weights.keys():
+            weights[key] /= sum_weights
+
+        grad = compute_gradient(X, y, x)
+
+        # 2. FW VERTEX (s_t) 
+        s_idx = np.argmax(np.abs(grad))
+        s_sign = -np.sign(grad[s_idx])
+        s_vec = np.zeros(n_features)
+        s_vec[s_idx] = s_sign * tau
+        s_key = (s_idx, s_sign)
+
+        # 3. AWAY VERTEX (v_t)
+        max_val = -np.inf
+        v_key = None
+        for key in weights.keys():
+            idx, sign = key
+            val = grad[idx] * sign * tau 
+            if val > max_val:
+                max_val = val
+                v_key = key
+                
+        v_vec = np.zeros(n_features)
+        v_idx, v_sign = v_key
+        v_vec[v_idx] = v_sign * tau
+
+        # 4. STOPPING CONDITION
+        fw_gap = -np.dot(grad, s_vec - x)
+        history_loss.append(compute_loss(X, y, x))
+        history_gap.append(fw_gap)
+        history_time.append(time() - t0)
+        history_sparsity.append(np.sum(np.abs(x) > 1e-8))
+
+        if fw_gap <= tolerance:
+            print(f"PFW convergence obtained at iteration {k} with gap: {fw_gap:.6f}")
+            break
+
+        # 5. PAIRWISE DIRECTION
+        # direct transfer of mass from the worst vertex (v_vec) to the best vertex (s_vec)
+        direction = s_vec - v_vec
+
+        # the stability of PFW: the maximum step size is simply the weight of the Away vertex
+        alpha_max = weights[v_key]
+
+        # 6. EXACT LINE SEARCH
+        Xd = X @ direction
+        den = np.sum(Xd ** 2)
+        if den < 1e-10:
+            alpha = 0.0
+        else:
+            opt_alpha = -np.dot(grad, direction) / den
+            alpha = np.clip(opt_alpha, 0.0, alpha_max)
+
+        # 7. UPDATE x
+        x = x + alpha * direction
+
+        # 8. UPDATE ACTIVE SET
+        # We update the weights of the active set. The weight of the Away vertex decreases,
+        # while the weight of the FW vertex increases.
+        weights[v_key] -= alpha
+        weights[s_key] = weights.get(s_key, 0.0) + alpha
+
+        # 9. DROP STEP
+        keys_to_drop = [key for key, val in weights.items() if val < 1e-9]
+        for key in keys_to_drop:
+            del weights[key]
+
+    cpu_time = time() - t0
+    return x, history_loss, history_gap, history_time, history_sparsity
+
+# =============================================
+# STEP 3: load the dataset from local csv file
+# =============================================
+
+"""
+About the dataset:
+The Riboflavin dataset comes from a real-world experiment on Bacillus subtilis (a bacterium) used to 
+produce riboflavin (vitamin B2) on an industrial scale.
+
+X (the features, p=4088): expression level (log-transformed) of 4088 bacterial genes, 
+measured by microarray, for 71 different cultures.
+y (the target): the riboflavin production rate (log-transformed) obtained from each culture.
+
+Assuming we work for a biotechnology company, our goal will be to identify which of these genes influence 
+production yield, so that we can then genetically intervene on those specific genes and increase 
+the industrial production of riboflavin.
+"""
+
+print("1. Loading Riboflavin dataset...")
+
+# 1. READ THE DATASET
+file_name = 'riboflavin.csv' 
+df = pd.read_csv(file_name)
+
+# 2. X AND Y SEPARATION 
+target_col = 'y' 
+
+y = df[target_col].values
+X = df.drop(columns=[target_col]).values
+
+print(f"Dataset dimensions: {X.shape[0]} observations, {X.shape[1]} features (genes)")
+
+# 3. STANDARDIZATION OF X AND Y
+print("\n2. Standardizing X and y...")
+scaler_X = StandardScaler()
+X_scaled = scaler_X.fit_transform(X)
+
+scaler_y = StandardScaler()
+# reshape(-1, 1) is necessary to standardize a 1D vector with sklearn
+y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten() 
+
+# 4. TUNING THE TAU PARAMETER
+# Since this is a very different dataset (thousands of genes), we start with an intermediate radius
+tau_param = 1.0  
+
+# Calcolo baseline (loss con tutti i pesi a zero)
+zero_weights = np.zeros(X_scaled.shape[1])
+baseline_loss = compute_loss(X_scaled, y_scaled, zero_weights)
+print(f"\n---> INITIAL LOSS (Baseline with zero weights): {baseline_loss:.4f} <---")
+print(f"---> L1 Radius (Tau) set to: {tau_param} <---")
+
+# 5. ALGORITHMS EXECUTION
+print("\n3. Standard Frank-Wolfe execution...")
+weights_fw, loss_fw, gap_fw, time_fw, spars_fw = frank_wolfe_lasso(X_scaled, y_scaled, tau=tau_param)
+fw_non_zero_weights = np.sum(np.abs(weights_fw) > 1e-8)
+
+print("\n4. Away-Step Frank-Wolfe (AFW) execution...")
+weights_afw, loss_afw, gap_afw, time_afw, spars_afw = away_steps_fw_lasso(X_scaled, y_scaled, tau=tau_param)
+afw_non_zero_weights = np.sum(np.abs(weights_afw) > 1e-8)
+
+print("\n5. Pairwise Frank-Wolfe (PFW) execution...")
+weights_pfw, loss_pfw, gap_pfw, time_pfw, spars_pfw = pairwise_fw_lasso(X_scaled, y_scaled, tau=tau_param)
+pfw_non_zero_weights = np.sum(np.abs(weights_pfw) > 1e-8)
+
+# 6. RESULTS SUMMARY
+print("\n--- STANDARD FW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_fw[0]:.4f}")
+print(f"Final loss: {loss_fw[-1]:.4f}")
+print(f"Final gap: {gap_fw[-1]:.6f}")
+print(f"Selected features: {fw_non_zero_weights} out of {X_scaled.shape[1]}")
+
+print("\n--- AFW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_afw[0]:.4f}")
+print(f"Final loss: {loss_afw[-1]:.4f}")
+print(f"Final gap: {gap_afw[-1]:.6f}")
+print(f"Selected features: {afw_non_zero_weights} out of {X_scaled.shape[1]}")
+
+print("\n--- PFW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_pfw[0]:.4f}")
+print(f"Final loss: {loss_pfw[-1]:.4f}")
+print(f"Final gap: {gap_pfw[-1]:.6f}")
+print(f"Selected features: {pfw_non_zero_weights} out of {X_scaled.shape[1]}")
+
+
+# =============
+# STEP 4: PLOTS
+# =============
+
+print("\n6. Convergence plot generation...")
+
+# Creazione di una griglia 2x2
+
+# Colori per variante
+color_fw = "#48a1e1"
+color_afw = "#ff0ea3"
+color_pfw = "#38d238"
+
+# 1. Loss convergence vs Iterations
+plt.figure(figsize=(8, 6))
+plt.plot(loss_fw, label='Standard FW', color=color_fw, linewidth=2)
+plt.plot(loss_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+plt.plot(loss_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+
+plt.title('Loss Convergence vs Iterations')
+plt.xlabel('Iterations')
+plt.ylabel('Loss (Log Scale)')
+plt.yscale('log')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('2_loss_convergence.png', dpi=300) 
+
+# 2. Duality Gap vs Iterations
+
+plt.figure(figsize=(8, 6))
+plt.plot(gap_fw, label='Standard FW', color=color_fw, linewidth=2)
+plt.plot(gap_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+plt.plot(gap_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+
+plt.title('Duality Gap vs Iterations')
+plt.xlabel('Iterations')
+plt.ylabel('Gap (Log Scale)')
+plt.yscale('log')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('2_duality_gap.png', dpi=300)
+
+# 3. Sparsity (Feature Attive) vs Iterations
+plt.figure(figsize=(8, 6))
+plt.plot(spars_fw, label='Standard FW', color=color_fw, linewidth=2)
+plt.plot(spars_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+plt.plot(spars_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+
+plt.title('Sparsity (Active Set dimension) vs Iterations')
+plt.xlabel('Iterations')
+plt.ylabel('Number of Non-Zero Features')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('2_sparsity.png', dpi=300)
+
+# 4.Duality Gap vs CPU Time (Efficiency Plot)
+plt.figure(figsize=(8, 6))
+plt.plot(time_fw, gap_fw, label='Standard FW', color=color_fw, linewidth=2)
+plt.plot(time_afw, gap_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+plt.plot(time_pfw, gap_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+
+plt.title('Efficiency: Gap vs CPU Time')
+plt.xlabel('Time (seconds)')
+plt.ylabel('Gap (Log Scale)')
+plt.yscale('log')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('2_cpu_time.png', dpi=300)
+
+plt.show()
+
+print("Script completato con successo! I grafici sono stati salvati nella cartella del progetto.")
+
+# 5. Weight Distribution (Histogram of Sparsity) ---
+print("Generating weight distribution histogram...")
+
+fig_hist, axs_hist = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
+
+tollerance = 1e-8
+
+# Estraiamo solo i pesi "sopravvissuti" al LASSO
+active_fw_w = weights_fw[np.abs(weights_fw) > tollerance]
+active_afw_w = weights_afw[np.abs(weights_afw) > tollerance]
+active_pfw_w = weights_pfw[np.abs(weights_pfw) > tollerance]
+
+# 1. Standard FW histogram
+axs_hist[0].hist(active_fw_w, bins=30, color=color_fw, alpha=0.7, edgecolor='black')
+axs_hist[0].set_title(f'Standard FW\n({len(active_fw_w)} active features)')
+axs_hist[0].set_xlabel('Coefficient Value')
+axs_hist[0].set_ylabel('Absolute Frequency')
+axs_hist[0].grid(axis='y', linestyle='--', alpha=0.7)
+
+# 2. Away-Step FW histogram
+axs_hist[1].hist(active_afw_w, bins=30, color=color_afw, alpha=0.7, edgecolor='black')
+axs_hist[1].set_title(f'Away-Step FW\n({len(active_afw_w)} active features)')
+axs_hist[1].set_xlabel('Coefficient Value')
+axs_hist[1].set_ylabel('Absolute Frequency')
+axs_hist[1].grid(axis='y', linestyle='--', alpha=0.7)
+
+# 3. Pairwise FW histogram
+axs_hist[2].hist(active_pfw_w, bins=30, color=color_pfw, alpha=0.7, edgecolor='black')
+axs_hist[2].set_title(f'Pairwise FW\n({len(active_pfw_w)} active features)')
+axs_hist[2].set_xlabel('Coefficient Value')
+axs_hist[2].set_ylabel('Absolute Frequency')
+axs_hist[2].grid(axis='y', linestyle='--', alpha=0.7)
+
+fig_hist.suptitle('Distribution of non-zero coefficients (weight magnitudes)', fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.savefig('2_weight_distribution.png', dpi=300)
+plt.show()
