@@ -134,21 +134,6 @@ def frank_wolfe_lasso(X, y, tau, max_iter=1000, tol=1e-4):
         
     return x_t, history_loss, history_gap, history_time, history_sparsity
 
-# problema di FW: zigzagging
-# proviamo delle varianti: away step e pairwise step (fully corrective step?)
-
-# introduciamo il concetto di active set (FW_survey.pdf 5.3 Variants)
-# active set:= set of all constrains active at the current solution (i.e., the set of vertices that have been selected so far)
-# avremo: 1) atoms selected so far (i.e., the set of vertices that have been selected so far)
-# 2) weight of each atom (i.e., the coefficients of the selected vertices)
-"""
-Avendo a disposizione questo registro, il ciclo iterativo per l'Away-Step cambierà così:
-- LMO Classico: Cerca il vertice migliore su tutto il dominio (esattamente come prima) per creare la direzione FW.
-- Away Oracle: Guarda solo all'interno dell'Active Set, trova il vertice peggiore (quello che rema contro la discesa del gradiente) e crea una direzione "Away" per sottrargli peso.
-- Scelta: L'algoritmo calcola quale delle due direzioni abbassa di più la funzione obiettivo e fa il passo in quella direzione.
-"""
-
-
 def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
     n_samples, n_features = X.shape
     x = np.zeros(n_features)
@@ -159,17 +144,14 @@ def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
 
     x[start_idx] = start_sign * tau
 
-    # Active Set a dizionario (indice, segno)
+    # Active Set (dict: key = index, value = sign)
     weights = {(start_idx, start_sign): 1.0}
 
-    #obj_history = []
-    #gap_history = []
     history_loss, history_gap, history_time, history_sparsity = [], [], [], []
     t0 = time()
 
     for k in range(max_iters):
         grad = compute_gradient(X, y, x)
-        history_loss.append(compute_loss(X, y, x))
 
         # FW VERTEX
         s_idx = np.argmax(np.abs(grad))
@@ -197,27 +179,26 @@ def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
         history_loss.append(compute_loss(X, y, x))
         history_gap.append(fw_gap)
         history_time.append(time() - t0)            
-        # history_sparsity.append(np.sum(np.abs(x) > 1e-8))
-        history_sparsity.append(len(weights))
+        history_sparsity.append(np.sum(np.abs(x) > 1e-8))
 
         if fw_gap <= tolerance:
             print(f"AFW Convergenza raggiunta all'iterazione {k} con gap: {fw_gap:.6f}")
             break
 
-        # DIREZIONE E PROTEZIONE OVERFLOW
+        # direction and overflow protection
         away_gap = -np.dot(grad, x - v_vec)
 
-        # Protezione: se c'è un solo vertice, o se il FW gap è maggiore, passo FW
+        # protection: if there is only one vertex, or if the FW gap is larger, take FW step
         if len(weights) == 1 or fw_gap >= away_gap:
             direction = s_vec - x
             alpha_max = 1.0
             is_fw_step = True
         else:
             direction = x - v_vec
-            peso_corrente = weights[v_key]
+            current_weight = weights[v_key]
 
-            denom = max(1.0 - peso_corrente, 1e-12)
-            alpha_max = peso_corrente / denom
+            denom = max(1.0 - current_weight, 1e-12)
+            alpha_max = current_weight / denom
             is_fw_step = False
 
         # EXACT LINE SEARCH
@@ -229,8 +210,8 @@ def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
             if den < 1e-10:
                 alpha = 0.0
             else:
-                alpha_ottimale = -np.dot(grad, direction) / den
-                alpha = np.clip(alpha_ottimale, 0.0, alpha_max)
+                opt_alpha = -np.dot(grad, direction) / den
+                alpha = np.clip(opt_alpha, 0.0, alpha_max)
 
         # UPDATE x
         x = x + alpha * direction
@@ -261,16 +242,15 @@ def away_steps_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
             weights[v_key] = 0.0
             del weights[v_key]
 
-    # NORMALIZZAZIONE FINALE 
-    somma = sum(weights.values())
-    for key in weights.keys():
-        weights[key] /= somma
+    # final normalization of weights to ensure they sum to 1 
+    # sum_weights = sum(weights.values())
+    # for key in weights.keys():
+    #     weights[key] /= sum_weights
 
     cpu_time = time() - t0
     return x, history_loss, history_gap, history_time, history_sparsity
 
 # proviamo a vedere con pairwise
-
 def pairwise_fw_lasso(X, y, tau, max_iters=1000, tolerance=1e-4):
     """
     Pairwise Frank-Wolfe ottimizzato con dizionario per il problema LASSO.

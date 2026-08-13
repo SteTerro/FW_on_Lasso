@@ -1,0 +1,379 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import make_regression
+import json
+from time import time
+
+# ============================
+# STEP 1: implemetare il lasso
+# ============================
+def compute_loss(X, y, x_weights):
+    """
+    Calcola il valore della funzione obiettivo (Least Squares).
+    
+    Parametri:
+    X : array numpy di forma (n_samples, n_features)
+    y : array numpy di forma (n_samples,)
+    x_weights : array numpy di forma (n_features,) - i coefficienti correnti
+    
+    Ritorna:
+    loss : float
+    """
+    # Calcolo del residuo: (X * x) - y
+    residual = (X @ x_weights) - y
+    
+    # 0.5 * norma_L2_al_quadrato
+    loss = 0.5 * np.sum(residual ** 2)
+    return loss
+
+def compute_gradient(X, y, x_weights):
+    """
+    Calcola il vettore gradiente della funzione obiettivo.
+    
+    Parametri:
+    X : array numpy di forma (n_samples, n_features)
+    y : array numpy di forma (n_samples,)
+    x_weights : array numpy di forma (n_features,) - i coefficienti correnti
+    
+    Ritorna:
+    grad : array numpy di forma (n_features,)
+    """
+    # Calcolo del residuo: (X * x) - y
+    residual = (X @ x_weights) - y
+    
+    # Gradiente: X_trasposta moltiplicata per il residuo
+    grad = X.T @ residual
+    return grad
+
+# ===================================
+# STEP 2: implementare il Frank-Wolfe
+# ===================================
+
+# iniziamo con la funzione dell'oracolo (LMO)
+
+def lmo_l1(gradient, tau):
+    """
+    Linear Minimization Oracle (LMO) for ball L1.
+    Find the optimal atom/vertex s_t to minimize the dot product with gradient.
+    """
+    # s = zero vector of the same shape as gradient
+    s = np.zeros_like(gradient)
+    
+    # Troviamo l'indice della feature col gradiente massimo in valore assoluto
+    idx_max = np.argmax(np.abs(gradient))
+    
+    # Assegniamo il valore tau a quell'indice, con segno OPPOSTO al gradiente 
+    # (per puntare nella direzione di massima discesa)
+    s[idx_max] = -np.sign(gradient[idx_max]) * tau
+    
+    return s
+
+class FrankWolfeLasso:
+    def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
+        self.tau = tau
+        self.iter = max_iter
+        self.tol = tolerance
+        self.w_tolerance = w_tolerance
+
+        self.history_loss = []
+        self.history_gap = []
+        self.history_time = []
+        self.history_sparsity = []
+
+    def update_history(self, X, y, gap, start):
+        self.history_loss.append(compute_loss(X, y, self.x_t))
+        self.history_gap.append(gap)
+        self.history_time.append(time() - start)
+        self.history_sparsity.append(np.sum(np.abs(self.x_t) > self.w_tolerance))
+
+    def get_history(self):
+        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity
+
+    def get_number_non_zero_weights(self):
+        return np.sum(np.abs(self.x_t) > self.w_tolerance)
+
+    def get_non_zero_weights(self):
+        return self.x_t[np.abs(self.x_t) > self.w_tolerance]
+    
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        self.x_t = np.zeros(n_features) 
+
+        t0 = time()
+    
+        for t in range(self.iter):
+            grad = compute_gradient(X, y, self.x_t)
+            s_t = lmo_l1(grad, self.tau)
+            d_t = s_t - self.x_t
+
+            gap = np.dot(grad, -d_t)
+            
+            if gap <= self.tol:
+                print(f"Convergenza raggiunta all'iterazione {t} con gap: {gap:.6f}")
+                break
+                
+            Xd = X @ d_t
+            gamma_ottimale = gap / (np.sum(Xd ** 2) + 1e-10) 
+            
+            gamma = np.clip(gamma_ottimale, 0.0, 1.0)
+            
+            self.x_t = self.x_t + gamma * d_t
+
+            self.update_history(X, y, gap, t0)
+            
+        return self.x_t
+
+class AwayStepsFrankWolfeLasso:
+    def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
+        self.tau = tau
+        self.iter = max_iter
+        self.tol = tolerance
+        self.w_tolerance = w_tolerance
+
+        self.history_loss = []
+        self.history_gap = []
+        self.history_time = []
+        self.history_sparsity = []
+
+    def update_history(self, X, y, gap, start):
+        self.history_loss.append(compute_loss(X, y, self.x_t))
+        self.history_gap.append(gap)
+        self.history_time.append(time() - start)
+        self.history_sparsity.append(np.sum(np.abs(self.x_t) > self.w_tolerance))
+
+    def get_history(self):
+        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity
+
+    def get_number_non_zero_weights(self):
+        return np.sum(np.abs(self.x_t) > self.w_tolerance)
+
+    def get_non_zero_weights(self):
+        return self.x_t[np.abs(self.x_t) > self.w_tolerance]
+    
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        self.x_t = np.zeros(n_features) 
+
+        # initialization of active set
+        grad_0 = compute_gradient(X, y, self.x_t)
+        start_idx = np.argmax(np.abs(grad_0))
+        start_sign = -np.sign(grad_0[start_idx])
+
+        self.x_t[start_idx] = start_sign * self.tau
+
+        self.weights = {(start_idx, start_sign): 1.0}
+
+        t0 = time()
+    
+        for i in range(self.iter):
+            grad = compute_gradient(X, y, self.x_t)
+
+            # FW VERTEX
+            s_idx = np.argmax(np.abs(grad))
+            s_sign = -np.sign(grad[s_idx])
+            s_vec = np.zeros(n_features)
+            s_vec[s_idx] = s_sign * self.tau
+
+            # AWAY VERTEX 
+            max_val = -np.inf
+            v_key = None
+            for key in self.weights.keys():
+                idx, sign = key
+                val = grad[idx] * sign * self.tau
+                if val > max_val:
+                    max_val = val
+                    v_key = key
+
+            v_vec = np.zeros(n_features)
+            v_idx, v_sign = v_key
+            v_vec[v_idx] = v_sign * self.tau
+
+            # STOPPING CONDITION
+            fw_gap = -np.dot(grad, s_vec - self.x_t)
+
+            if fw_gap <= self.tol:
+                print(f"Convergenza raggiunta all'iterazione {i} con gap: {fw_gap:.6f}")
+                break
+
+            # direction and overflow protection
+            away_gap = -np.dot(grad, self.x_t - v_vec)
+
+            # protection: if there is only one vertex, or if the FW gap is larger, take FW step
+            if len(self.weights) == 1 or fw_gap >= away_gap:
+                direction = s_vec - self.x_t
+                alpha_max = 1.0
+                is_fw_step = True
+            else:
+                direction = self.x_t - v_vec
+                current_weight = self.weights[v_key]
+
+                denom = max(1.0 - current_weight, 1e-12)
+                alpha_max = current_weight / denom
+                is_fw_step = False
+
+            # EXACT LINE SEARCH
+            if np.max(np.abs(direction)) < 1e-14:
+                alpha = 0.0
+            else:
+                Xd = X @ direction
+                den = np.sum(Xd ** 2)
+                if den < 1e-10:
+                    alpha = 0.0
+                else:
+                    opt_alpha = -np.dot(grad, direction) / den
+                    alpha = np.clip(opt_alpha, 0.0, alpha_max)
+
+            # UPDATE x
+            self.x_t = self.x_t + alpha * direction
+
+            # UPDATE ACTIVE SET
+            if is_fw_step:
+                for key in list(self.weights.keys()):
+                    self.weights[key] = (1 - alpha) * self.weights[key]
+                s_key = (s_idx, s_sign)
+                self.weights[s_key] = self.weights.get(s_key, 0.0) + alpha
+            else:
+                for key in list(self.weights.keys()):
+                    if key == v_key:
+                        self.weights[key] = (1 + alpha) * self.weights[key] - alpha
+                    else:
+                        self.weights[key] = (1 + alpha) * self.weights[key]
+
+            # DROP STEP
+            to_drop = []
+            for key in self.weights:
+                if abs(self.weights[key]) < 1e-10:
+                    to_drop.append(key)
+            for key in to_drop:
+                del self.weights[key]
+
+            # keys_to_drop = [key for key, val in weights.items() if val < 1e-9]
+            # for key in keys_to_drop:
+            #     del weights[key]
+            # drop_tol = 1e-14
+
+            # for key in list(weights):
+            #     if weights[key] <= drop_tol:
+            #         del weights[key]
+            # if not is_fw_step and alpha >= alpha_max - drop_tol:
+            #     self.weights[v_key] = 0.0
+            #     del self.weights[v_key]
+
+            self.update_history(X, y, fw_gap, t0)            
+
+        return self.x_t
+
+class PairwiseFrankWolfeLasso:
+    def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
+        self.tau = tau
+        self.iter = max_iter
+        self.tol = tolerance
+        self.w_tolerance = w_tolerance
+
+        self.history_loss = []
+        self.history_gap = []
+        self.history_time = []
+        self.history_sparsity = []
+
+    def update_history(self, X, y, gap, start):
+        self.history_loss.append(compute_loss(X, y, self.x_t))
+        self.history_gap.append(gap)
+        self.history_time.append(time() - start)
+        self.history_sparsity.append(np.sum(np.abs(self.x_t) > self.w_tolerance))
+
+    def get_history(self):
+        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity
+
+    def get_number_non_zero_weights(self):
+        return np.sum(np.abs(self.x_t) > self.w_tolerance)
+
+    def get_non_zero_weights(self):
+        return self.x_t[np.abs(self.x_t) > self.w_tolerance]
+        
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        self.x_t = np.zeros(n_features)
+        
+        # Inizializzazione
+        grad_0 = compute_gradient(X, y, self.x_t)
+        start_idx = np.argmax(np.abs(grad_0))
+        start_sign = -np.sign(grad_0[start_idx])
+        
+        self.x_t[start_idx] = start_sign * self.tau
+        self.weights = {(start_idx, start_sign): 1.0} 
+
+        t0 = time()
+
+        for i in range(self.iter):
+            grad = compute_gradient(X, y, self.x_t)
+
+            # --- 2. FW VERTEX (s_t) ---
+            s_idx = np.argmax(np.abs(grad))
+            s_sign = -np.sign(grad[s_idx])
+            s_vec = np.zeros(n_features)
+            s_vec[s_idx] = s_sign * self.tau
+            s_key = (s_idx, s_sign)
+
+            # --- 3. AWAY VERTEX (v_t) ---
+            max_val = -np.inf
+            v_key = None
+            for key in self.weights.keys():
+                idx, sign = key
+                val = grad[idx] * sign * self.tau 
+                if val > max_val:
+                    max_val = val
+                    v_key = key
+                    
+            v_vec = np.zeros(n_features)
+            v_idx, v_sign = v_key
+            v_vec[v_idx] = v_sign * self.tau
+
+            # --- 4. STOPPING CONDITION ---
+            fw_gap = -np.dot(grad, s_vec - self.x_t)
+
+            if fw_gap <= self.tol:
+                print(f"PFW Convergenza raggiunta all'iterazione {i} con gap: {fw_gap:.6f}")
+                break
+
+            # --- 5. PAIRWISE DIRECTION ---
+            # Trasferimento diretto di massa dal vertice peggiore (v_vec) a quello migliore (s_vec)
+            direction = s_vec - v_vec
+                    
+            # La stabilità del PFW: il passo massimo è semplicemente il peso del vertice Away!
+            alpha_max = self.weights[v_key]
+
+            # --- 6. EXACT LINE SEARCH ---
+            Xd = X @ direction
+            den = np.sum(Xd ** 2)
+            if den < 1e-10:
+                alpha = 0.0
+            else:
+                alpha_ottimale = -np.dot(grad, direction) / den
+                alpha = np.clip(alpha_ottimale, 0.0, alpha_max)
+
+            # --- 7. UPDATE x ---
+            self.x_t = self.x_t + alpha * direction
+
+            # --- 8. UPDATE ACTIVE SET ---
+            # Modifichiamo SOLO i due vertici coinvolti. Tutti gli altri pesi restano invariati.
+            self.weights[v_key] -= alpha
+            self.weights[s_key] = self.weights.get(s_key, 0.0) + alpha
+
+            # --- 9. DROP STEP ---
+            # keys_to_drop = [key for key, val in weights.items() if val < 1e-9]
+            # for key in keys_to_drop:
+            #     del weights[key]
+            drop_tol = 1e-14
+
+            # for key in list(weights):
+            #     if weights[key] <= drop_tol:
+            #         del weights[key]
+            if alpha >= alpha_max - drop_tol:
+                self.weights[v_key] = 0.0
+                del self.weights[v_key]
+
+            self.update_history(X, y, fw_gap, t0)            
+
+        return self.x_t
+
