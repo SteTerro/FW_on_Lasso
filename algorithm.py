@@ -10,39 +10,37 @@ from time import time
 # ============================
 def compute_loss(X, y, x_weights):
     """
-    Calcola il valore della funzione obiettivo (Least Squares).
-    
-    Parametri:
-    X : array numpy di forma (n_samples, n_features)
-    y : array numpy di forma (n_samples,)
-    x_weights : array numpy di forma (n_features,) - i coefficienti correnti
-    
-    Ritorna:
+    Compute the value of the objective function (Least Squares).
+    Parameters:
+    X : numpy array of shape (n_samples, n_features)
+    y : numpy array of shape (n_samples,)
+    x_weights : numpy array of shape (n_features,) - current coefficients
+    Returns:
     loss : float
     """
-    # Calcolo del residuo: (X * x) - y
+    # Residual (X * x) - y
     residual = (X @ x_weights) - y
     
-    # 0.5 * norma_L2_al_quadrato
+    # 0.5 * L2_norm_squared
     loss = 0.5 * np.sum(residual ** 2)
     return loss
 
 def compute_gradient(X, y, x_weights):
     """
-    Calcola il vettore gradiente della funzione obiettivo.
+    Compute the gradient vector of the objective function.
     
-    Parametri:
-    X : array numpy di forma (n_samples, n_features)
-    y : array numpy di forma (n_samples,)
-    x_weights : array numpy di forma (n_features,) - i coefficienti correnti
+    Parameters:
+    X : numpy array of shape (n_samples, n_features)
+    y : numpy array of shape (n_samples,)
+    x_weights : numpy array of shape (n_features,) - current coefficients
     
-    Ritorna:
-    grad : array numpy di forma (n_features,)
+    Returns:
+    grad : numpy array of shape (n_features,)
     """
-    # Calcolo del residuo: (X * x) - y
+    # (X * x) - y
     residual = (X @ x_weights) - y
     
-    # Gradiente: X_trasposta moltiplicata per il residuo
+    # Gradient: X_transposed multiplied by the residual
     grad = X.T @ residual
     return grad
 
@@ -50,8 +48,7 @@ def compute_gradient(X, y, x_weights):
 # STEP 2: implementare il Frank-Wolfe
 # ===================================
 
-# iniziamo con la funzione dell'oracolo (LMO)
-
+# 1. linear minimization oracle for L1 ball
 def lmo_l1(gradient, tau):
     """
     Linear Minimization Oracle (LMO) for ball L1.
@@ -60,11 +57,11 @@ def lmo_l1(gradient, tau):
     # s = zero vector of the same shape as gradient
     s = np.zeros_like(gradient)
     
-    # Troviamo l'indice della feature col gradiente massimo in valore assoluto
+    # find the index of the feature with the maximum absolute gradient
     idx_max = np.argmax(np.abs(gradient))
     
-    # Assegniamo il valore tau a quell'indice, con segno OPPOSTO al gradiente 
-    # (per puntare nella direzione di massima discesa)
+    # assign the value tau to that index with the opposite sign of the gradient 
+    # (to point in the direction of maximum descent)
     s[idx_max] = -np.sign(gradient[idx_max]) * tau
     
     return s
@@ -98,21 +95,31 @@ class FrankWolfeLasso:
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
+        # we start wiht the center of the L1 ball is the zero vector, 
+        # which is also the point of maximum sparsity
         self.x_t = np.zeros(n_features) 
 
         t0 = time()
     
         for t in range(self.iter):
+            # 1. current gradient computation
             grad = compute_gradient(X, y, self.x_t)
+
+            # 2. vertex selection, through oracle call
             s_t = lmo_l1(grad, self.tau)
+
+            # 3.ipdate direction
             d_t = s_t - self.x_t
 
+            # 4. duality gap (for stopping condition)
             gap = np.dot(grad, -d_t)
             
+            # 5. stopping criterion: if the gap is smaller than the tolerance, we stop
             if gap <= self.tol:
                 print(f"Convergenza raggiunta all'iterazione {t} con gap: {gap:.6f}")
                 break
-                
+            
+            # 6. line search, choose gamma (learning rate)
             Xd = X @ d_t
             gamma_ottimale = gap / (np.sum(Xd ** 2) + 1e-10) 
             
@@ -124,6 +131,7 @@ class FrankWolfeLasso:
             
         return self.x_t
 
+# 3. Away-step Frank-Wolfe for LASSO
 class AwayStepsFrankWolfeLasso:
     def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
         self.tau = tau
@@ -162,6 +170,7 @@ class AwayStepsFrankWolfeLasso:
 
         self.x_t[start_idx] = start_sign * self.tau
 
+        # Active Set (dict: key = index, value = sign)
         self.weights = {(start_idx, start_sign): 1.0}
 
         t0 = time()
@@ -295,7 +304,7 @@ class PairwiseFrankWolfeLasso:
         n_samples, n_features = X.shape
         self.x_t = np.zeros(n_features)
         
-        # Inizializzazione
+        # Initialize the active set with the first vertex
         grad_0 = compute_gradient(X, y, self.x_t)
         start_idx = np.argmax(np.abs(grad_0))
         start_sign = -np.sign(grad_0[start_idx])
@@ -308,14 +317,14 @@ class PairwiseFrankWolfeLasso:
         for i in range(self.iter):
             grad = compute_gradient(X, y, self.x_t)
 
-            # --- 2. FW VERTEX (s_t) ---
+            # 2. FW VERTEX (s_t)
             s_idx = np.argmax(np.abs(grad))
             s_sign = -np.sign(grad[s_idx])
             s_vec = np.zeros(n_features)
             s_vec[s_idx] = s_sign * self.tau
             s_key = (s_idx, s_sign)
 
-            # --- 3. AWAY VERTEX (v_t) ---
+            # 3. AWAY VERTEX (v_t)
             max_val = -np.inf
             v_key = None
             for key in self.weights.keys():
@@ -329,21 +338,21 @@ class PairwiseFrankWolfeLasso:
             v_idx, v_sign = v_key
             v_vec[v_idx] = v_sign * self.tau
 
-            # --- 4. STOPPING CONDITION ---
+            # 4. STOPPING CONDITION
             fw_gap = -np.dot(grad, s_vec - self.x_t)
 
             if fw_gap <= self.tol:
                 print(f"PFW Convergenza raggiunta all'iterazione {i} con gap: {fw_gap:.6f}")
                 break
 
-            # --- 5. PAIRWISE DIRECTION ---
-            # Trasferimento diretto di massa dal vertice peggiore (v_vec) a quello migliore (s_vec)
+            # 5. PAIRWISE DIRECTION
+            # direct transfer of mass from the worst vertex (v_vec) to the best vertex (s_vec)
             direction = s_vec - v_vec
                     
-            # La stabilità del PFW: il passo massimo è semplicemente il peso del vertice Away!
+            # the stability of the PFW: the maximum step is simply the weight of the Away vertex!
             alpha_max = self.weights[v_key]
 
-            # --- 6. EXACT LINE SEARCH ---
+            # 6. EXACT LINE SEARCH
             Xd = X @ direction
             den = np.sum(Xd ** 2)
             if den < 1e-10:
@@ -352,15 +361,16 @@ class PairwiseFrankWolfeLasso:
                 alpha_ottimale = -np.dot(grad, direction) / den
                 alpha = np.clip(alpha_ottimale, 0.0, alpha_max)
 
-            # --- 7. UPDATE x ---
+            # 7. UPDATE x
             self.x_t = self.x_t + alpha * direction
 
-            # --- 8. UPDATE ACTIVE SET ---
-            # Modifichiamo SOLO i due vertici coinvolti. Tutti gli altri pesi restano invariati.
+            # 8. UPDATE ACTIVE SET
+            # We update the weights of the active set. The weight of the Away vertex decreases,
+            # while the weight of the FW vertex increases.
             self.weights[v_key] -= alpha
             self.weights[s_key] = self.weights.get(s_key, 0.0) + alpha
 
-            # --- 9. DROP STEP ---
+            # 9. DROP STEP
             # keys_to_drop = [key for key, val in weights.items() if val < 1e-9]
             # for key in keys_to_drop:
             #     del weights[key]

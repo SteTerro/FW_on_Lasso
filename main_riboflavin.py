@@ -5,11 +5,12 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from utils import plot
 
+# Global variables
 TAU = 1.0
 ITER = 1000
 TOLERANCE = 1e-4
 
-print("1. Caricamento del dataset Riboflavin...")
+print("1. Loading Riboflavin dataset...")
 
 file_name = 'data/riboflavin.csv' 
 
@@ -21,58 +22,65 @@ X = df.drop(columns=[target_col]).values
 
 print(f"Dataset dimensions: {X.shape[0]} observations, {X.shape[1]} features (genes)")
 
-print("\n2. Pre-processing in corso...")
+print("\n2. Standardizing X and y...")
 scaler_X = StandardScaler()
 X_scaled = scaler_X.fit_transform(X)
 
 scaler_y = StandardScaler()
 y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten()
 
-print("\n3. Esecuzione algoritmo Frank-Wolfe...")
+def compute_loss(X, y, x_weights):
+    residual = (X @ x_weights) - y
+    return  0.5 * np.sum(residual ** 2)
+
+# Baseline Loss
+zero_weights = np.zeros(X_scaled.shape[1])
+baseline_loss = compute_loss(X_scaled, y_scaled, zero_weights)
+print(f"\n---> INITIAL LOSS (Baseline with zero weights): {baseline_loss:.4f} <---")
+print(f"---> L1 Radius (Tau) set to: {TAU} <---")
+
+print("\n3. Standard Frank-Wolfe execution...")
 FWL = FrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
 fw_fitted = FWL.fit(X_scaled, y_scaled)
 loss_fw, gap_fw, time_fw, spars_fw = FWL.get_history()
-numero_pesi_fw = FWL.get_number_non_zero_weights()
-pesi_fw = FWL.get_non_zero_weights()
+fw_non_zero_weights = FWL.get_number_non_zero_weights()
+fw_weights = FWL.get_non_zero_weights()
 
-print("\n--- RISULTATI FW STANDARD ---")
-print(f"Loss finale raggiunta: {loss_fw[-1]:.4f}")
-print(f"Gap finale: {gap_fw[-1]:.6f}")
-print(f"Feature selezionate (non nulle): {numero_pesi_fw} su {X_scaled.shape[1]}")
+print("\n--- STANDARD FW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_fw[0]:.4f}")
+print(f"Final loss: {loss_fw[-1]:.4f}")
+print(f"Final gap: {gap_fw[-1]:.6f}")
+print(f"Selected features: {fw_non_zero_weights} out of {X_scaled.shape[1]}")
 
-print("\n4. Eecuzione algoritmo Away-Step Frank-Wolfe (AFW)...")
+print("\n4. Away-Step Frank-Wolfe (AFW) execution...")
 AFWL = AwayStepsFrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
 afw_fittet = AFWL.fit(X_scaled, y_scaled)
 loss_afw, gap_afw, time_afw, spars_afw = AFWL.get_history()
-numero_pesi_afw = AFWL.get_number_non_zero_weights()
-pesi_afw = AFWL.get_non_zero_weights()
+afw_non_zero_weights = AFWL.get_number_non_zero_weights()
+afw_weights = AFWL.get_non_zero_weights()
 
-print("\n--- RISULTATI AFW ---")
-print(f"Loss iniziale (dopo il 1° vertice): {loss_afw[0]:.4f}")
-print(f"Loss finale: {loss_afw[-1]:.4f}")
-print(f"Gap finale: {gap_afw[-1]:.6f}")
-print(f"Feature selezionate (non nulle): {numero_pesi_afw} su {X_scaled.shape[1]}")
+print("\n--- AFW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_afw[0]:.4f}")
+print(f"Final loss: {loss_afw[-1]:.4f}")
+print(f"Final gap: {gap_afw[-1]:.6f}")
+print(f"Selected features: {afw_non_zero_weights} out of {X_scaled.shape[1]}")
 
-print("\n5. Esecuzione algoritmo Pairwise Frank-Wolfe (PFW)...")
+print("\n5. Pairwise Frank-Wolfe (PFW) execution...")
 PFWL = PairwiseFrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
 pfw_fitted = PFWL.fit(X_scaled, y_scaled)
 loss_pfw, gap_pfw, time_pfw, spars_pfw = PFWL.get_history()
-numero_pesi_pfw = PFWL.get_number_non_zero_weights()
-pesi_pfw = PFWL.get_non_zero_weights()
+pfw_non_zero_weights = PFWL.get_number_non_zero_weights()
+pfw_weights = PFWL.get_non_zero_weights()
 
-print("\n--- RISULTATI PFW ---")
-print(f"Loss iniziale (dopo il 1° vertice): {loss_pfw[0]:.4f}")
-print(f"Loss finale: {loss_pfw[-1]:.4f}")
-print(f"Gap finale: {gap_pfw[-1]:.6f}")
-print(f"Feature selezionate (non nulle): {numero_pesi_pfw} su {X_scaled.shape[1]}")
+print("\n--- PFW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_pfw[0]:.4f}")
+print(f"Final loss: {loss_pfw[-1]:.4f}")
+print(f"Final gap: {gap_pfw[-1]:.6f}")
+print(f"Selected features: {pfw_non_zero_weights} out of {X_scaled.shape[1]}")
 
-# ==========================================
-# STEP 4: plot
-# ==========================================
+# Plotting
 
-print("\n6. Generazione dei grafici di convergenza...")
-
-# Creazione di una griglia 2x2
+print("\n6. Convergence plot generation...")
 
 name_1 = 'ribo_image/1_loss_convergence_ribo.png'
 name_2 = 'ribo_image/2_duality_gap_ribo.png'
@@ -89,18 +97,11 @@ plot.loss(loss_fw, loss_afw, loss_pfw, color_fw, color_afw, color_pfw, name_1)
 plot.duality_gap(gap_fw, gap_afw, gap_pfw, color_fw, color_afw, color_pfw, name_2)
 plot.sparsity(spars_fw, spars_afw, spars_pfw, color_fw, color_afw, color_pfw, name_3)
 plot.efficiency(time_fw, time_afw, time_pfw, gap_fw, gap_afw, gap_pfw, color_fw, color_afw, color_pfw, name_4)
-plot.weight_distr(pesi_fw, pesi_afw, pesi_pfw, color_fw, color_afw, color_pfw, name_5)
+plot.weight_distr(fw_weights, afw_weights, pfw_weights, color_fw, color_afw, color_pfw, name_5)
 
-# Mostra tutte le finestre create a schermo contemporaneamente
+# Display plot
 plt.show()
 
-print("Script completato con successo! I grafici sono stati salvati nella cartella del progetto.")
+print("Script completed successfully! Graphs have been saved in the project folder.")
 
-# altri plot interessanti:
-# - plot dei pesi finali (sparse) per vedere quali feature sono state selezionate
-# - plot della distribuzione dei pesi (istogramma) per vedere la sparsità e la concentrazione dei pesi
-# - plot della loss e del gap in funzione del tempo di esecuzione (per confrontare le velocità di convergenza)
-
-# --- Grafico 5: Distribuzione dei Pesi (Istogramma della Sparsità) ---
-# print("Generazione dell'istogramma dei pesi...")
 
