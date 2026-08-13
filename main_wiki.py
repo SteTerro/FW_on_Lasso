@@ -17,21 +17,21 @@ try:
     with open(file_name, 'r') as file:
         dataset_json = json.load(file)
         
-    # Estraiamo i dati ignorando la chiave "edges" (il grafo)
-    visite_giornaliere = []
-    # Prendiamo i giorni in ordine cronologico (le chiavi numeriche)
-    giorni = sorted([k for k in dataset_json.keys() if k.isdigit()], key=int)
+    # Extract the data ignoring the "edges" key (the graph structure)
+    daily_visits = []
+    # Take the days in chronological order (numeric keys)
+    days = sorted([k for k in dataset_json.keys() if k.isdigit()], key=int)
     
-    for giorno in giorni:
-        visite_giornaliere.append(dataset_json[giorno]['y'])
+    for day in days:
+        daily_visits.append(dataset_json[day]['y'])
         
-    # Creiamo la matrice: 731 giorni (righe) x 1068 pagine (colonne)
-    matrice_dati = np.array(visite_giornaliere)
+    # Create the matrix: 731 days (rows) x 1068 pages (columns)
+    data_matrix = np.array(daily_visits)
     
-    # SETUP PER IL LASSO: decidiamo di predire le visite della 1° pagina (target) 
-    # usando le visite di tutte le altre 1067 pagine (feature)
-    y_raw = matrice_dati[:, 0]  
-    X_raw = matrice_dati[:, 1:] 
+    # SETUP FOR LASSO: decide to take the first page's visits (target) 
+    # using the visits of all other 1067 pages (features)
+    y_raw = data_matrix[:, 0]  
+    X_raw = data_matrix[:, 1:] 
     
     print(f"X Matrix dimensions: {X_raw.shape}")
     print(f"y Vector dimensions: {y_raw.shape}")
@@ -39,8 +39,8 @@ try:
     print("\n2. Pre-processing")
     scaler_X = StandardScaler()
     X_scaled = scaler_X.fit_transform(X_raw)
-    
-    # no centered_y ma standardizziamo la y (Media 0, Varianza 1)
+
+    # standardize the target variable y (mean 0, variance 1)
     scaler_y = StandardScaler()
     y_scaled = scaler_y.fit_transform(y_raw.reshape(-1, 1)).flatten()
 

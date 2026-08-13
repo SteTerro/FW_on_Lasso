@@ -6,7 +6,7 @@ import json
 from time import time
 
 # ============================
-# STEP 1: implemetare il lasso
+# STEP 1: LASSO implementation 
 # ============================
 def compute_loss(X, y, x_weights):
     """
@@ -44,9 +44,9 @@ def compute_gradient(X, y, x_weights):
     grad = X.T @ residual
     return grad
 
-# ===================================
-# STEP 2: implementare il Frank-Wolfe
-# ===================================
+# =============================================
+# STEP 2: Frank-Wolfe implementation for LASSO
+# =============================================
 
 # 1. linear minimization oracle for L1 ball
 def lmo_l1(gradient, tau):
@@ -66,6 +66,7 @@ def lmo_l1(gradient, tau):
     
     return s
 
+# 2. Frank-Wolfe algorithm for LASSO
 class FrankWolfeLasso:
     def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
         self.tau = tau
@@ -116,14 +117,14 @@ class FrankWolfeLasso:
             
             # 5. stopping criterion: if the gap is smaller than the tolerance, we stop
             if gap <= self.tol:
-                print(f"Convergenza raggiunta all'iterazione {t} con gap: {gap:.6f}")
+                print(f"Convergence obtained at iteration {t} with gap: {gap:.6f}")
                 break
             
             # 6. line search, choose gamma (learning rate)
             Xd = X @ d_t
-            gamma_ottimale = gap / (np.sum(Xd ** 2) + 1e-10) 
+            opt_gamma = gap / (np.sum(Xd ** 2) + 1e-10) 
             
-            gamma = np.clip(gamma_ottimale, 0.0, 1.0)
+            gamma = np.clip(opt_gamma, 0.0, 1.0)
             
             self.x_t = self.x_t + gamma * d_t
 
@@ -202,7 +203,7 @@ class AwayStepsFrankWolfeLasso:
             fw_gap = -np.dot(grad, s_vec - self.x_t)
 
             if fw_gap <= self.tol:
-                print(f"Convergenza raggiunta all'iterazione {i} con gap: {fw_gap:.6f}")
+                print(f"Convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
                 break
 
             # direction and overflow protection
@@ -342,7 +343,7 @@ class PairwiseFrankWolfeLasso:
             fw_gap = -np.dot(grad, s_vec - self.x_t)
 
             if fw_gap <= self.tol:
-                print(f"PFW Convergenza raggiunta all'iterazione {i} con gap: {fw_gap:.6f}")
+                print(f"PFW Convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
                 break
 
             # 5. PAIRWISE DIRECTION
@@ -358,8 +359,8 @@ class PairwiseFrankWolfeLasso:
             if den < 1e-10:
                 alpha = 0.0
             else:
-                alpha_ottimale = -np.dot(grad, direction) / den
-                alpha = np.clip(alpha_ottimale, 0.0, alpha_max)
+                opt_alpha = -np.dot(grad, direction) / den
+                alpha = np.clip(opt_alpha, 0.0, alpha_max)
 
             # 7. UPDATE x
             self.x_t = self.x_t + alpha * direction
