@@ -20,7 +20,7 @@ class plot:
         plt.savefig('2_loss_convergence.png', dpi=300) 
 
 
-    #  2: Duality Gap vs Iterazioni
+    #  2: Duality Gap vs Iterations
     def duality_gap(gap_fw, gap_afw, gap_pfw, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/2_duality_gap.png'):
         plt.figure(figsize=(8, 6))
         plt.plot(gap_fw, label='Standard FW', color=color_fw, linewidth=2)
@@ -37,7 +37,7 @@ class plot:
         plt.savefig('2_duality_gap.png', dpi=300)
 
 
-    #  3: Sparsità (Feature Attive) vs Iterazioni
+    #  3: Sparsity (Feature Attive) vs Iterations 
     def sparsity(spars_fw, spars_afw, spars_pfw, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/3_sparsity.png'):
         plt.figure(figsize=(8, 6))
         plt.plot(spars_fw, label='Standard FW', color=color_fw, linewidth=2)
@@ -53,7 +53,7 @@ class plot:
         plt.savefig('2_sparsity.png', dpi=300)
 
 
-    #  4: Duality Gap vs CPU Time (Efficienza)
+    #  4: Duality Gap vs CPU Time (Efficiency)
     def efficiency(time_fw, time_afw, time_pfw, gap_fw, gap_afw, gap_pfw, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/4_cpu_time.png'):
         plt.figure(figsize=(8, 6))
         plt.plot(time_fw, gap_fw, label='Standard FW', color=color_fw, linewidth=2)
@@ -75,24 +75,24 @@ class plot:
 
         # 1. Standard FW
         axs_hist[0].hist(pesi_fw, bins=30, color=color_fw, alpha=0.7, edgecolor='black')
-        axs_hist[0].set_title(f'Standard FW\n({len(pesi_fw)} feature attive)')
-        axs_hist[0].set_xlabel('Valore del Coefficiente')
-        axs_hist[0].set_ylabel('Frequenza Assoluta')
+        axs_hist[0].set_title(f'Standard FW\n({len(pesi_fw)} active features)')
+        axs_hist[0].set_xlabel('Coefficient Value')
+        axs_hist[0].set_ylabel('Absolute Frequency')
         axs_hist[0].grid(axis='y', linestyle='--', alpha=0.7)
 
         # 2. Away-Step FW
         axs_hist[1].hist(pesi_afw, bins=30, color=color_afw, alpha=0.7, edgecolor='black')
-        axs_hist[1].set_title(f'Away-Step FW\n({len(pesi_afw)} feature attive)')
-        axs_hist[1].set_xlabel('Valore del Coefficiente')
+        axs_hist[1].set_title(f'Away-Step FW\n({len(pesi_afw)} active features)')
+        axs_hist[1].set_xlabel('Coefficient Value')
         axs_hist[1].grid(axis='y', linestyle='--', alpha=0.7)
 
         # 3. Pairwise FW
         axs_hist[2].hist(pesi_pfw, bins=30, color=color_pfw, alpha=0.7, edgecolor='black')
-        axs_hist[2].set_title(f'Pairwise FW\n({len(pesi_pfw)} feature attive)')
-        axs_hist[2].set_xlabel('Valore del Coefficiente')
+        axs_hist[2].set_title(f'Pairwise FW\n({len(pesi_pfw)} active features)')
+        axs_hist[2].set_xlabel('Coefficient Value')
         axs_hist[2].grid(axis='y', linestyle='--', alpha=0.7)
 
-        fig_hist.suptitle('Distribuzione dei Coefficienti Non Nulli (Magnitudo dei Pesi)', fontsize=14, fontweight='bold')
+        fig_hist.suptitle('Distribution of Non-Zero Coefficients (Magnitude of Weights)', fontsize=14, fontweight='bold')
         plt.tight_layout()
         plt.savefig(name, dpi=300)
         plt.show()

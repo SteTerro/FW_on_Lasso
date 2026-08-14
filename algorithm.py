@@ -96,7 +96,7 @@ class FrankWolfeLasso:
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
-        # we start wiht the center of the L1 ball is the zero vector, 
+        # we start wiht the center of the l1-ball is the zero vector, 
         # which is also the point of maximum sparsity
         self.x_t = np.zeros(n_features) 
 
@@ -109,7 +109,7 @@ class FrankWolfeLasso:
             # 2. vertex selection, through oracle call
             s_t = lmo_l1(grad, self.tau)
 
-            # 3.ipdate direction
+            # 3. update direction
             d_t = s_t - self.x_t
 
             # 4. duality gap (for stopping condition)
@@ -164,7 +164,7 @@ class AwayStepsFrankWolfeLasso:
         n_samples, n_features = X.shape
         self.x_t = np.zeros(n_features) 
 
-        # initialization of active set
+        # Initialization of active set
         grad_0 = compute_gradient(X, y, self.x_t)
         start_idx = np.argmax(np.abs(grad_0))
         start_sign = -np.sign(grad_0[start_idx])
@@ -206,10 +206,10 @@ class AwayStepsFrankWolfeLasso:
                 print(f"Convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
                 break
 
-            # direction and overflow protection
+            # Direction and overflow protection
             away_gap = -np.dot(grad, self.x_t - v_vec)
 
-            # protection: if there is only one vertex, or if the FW gap is larger, take FW step
+            # Protection: if there is only one vertex, or if the FW gap is larger, take FW step
             if len(self.weights) == 1 or fw_gap >= away_gap:
                 direction = s_vec - self.x_t
                 alpha_max = 1.0

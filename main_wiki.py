@@ -112,11 +112,4 @@ plt.show()
 
 print("Script completed successfully! Graphs have been saved in the project folder.")
 
-# altri plot interessanti:
-# - plot dei pesi finali (sparse) per vedere quali feature sono state selezionate
-# - plot della distribuzione dei pesi (istogramma) per vedere la sparsità e la concentrazione dei pesi
-# - plot della loss e del gap in funzione del tempo di esecuzione (per confrontare le velocità di convergenza)
-
-# --- Grafico 5: Distribuzione dei Pesi (Istogramma della Sparsità) ---
-# print("Generazione dell'istogramma dei pesi...")
 
