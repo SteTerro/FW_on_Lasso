@@ -259,16 +259,15 @@ class AwayStepsFrankWolfeLasso:
 
             # Direction and overflow protection
             away_gap = -np.dot(grad, self.x_t - v_vec)
+            current_weight = self.weights[v_key]
 
             # Protection: if there is only one vertex, or if the FW gap is larger, take FW step
-            if len(self.weights) == 1 or fw_gap >= away_gap:
+            if len(self.weights) == 1 or fw_gap >= away_gap or current_weight >= 1.0 - 1e-10:
                 direction = s_vec - self.x_t
                 alpha_max = 1.0
                 is_fw_step = True
             else:
                 direction = self.x_t - v_vec
-                current_weight = self.weights[v_key]
-
                 denom = max(1.0 - current_weight, 1e-12)
                 alpha_max = current_weight / denom
                 is_fw_step = False

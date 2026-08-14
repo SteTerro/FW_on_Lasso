@@ -138,16 +138,21 @@ color_fw = "#48a1e1"
 color_afw = "#ff0ea3"
 color_pfw = "#38d238"
 
-plot.loss(loss_fw, loss_afw, loss_pfw, False, color_fw, color_afw, color_pfw, name_1)
-plot.duality_gap(gap_fw, gap_afw, gap_pfw, False, color_fw, color_afw, color_pfw, name_2)
-plot.loss(loss_fw, loss_afw, loss_pfw, True, color_fw, color_afw, color_pfw, f'{name_1}_log.png')
-plot.duality_gap(gap_fw, gap_afw, gap_pfw, True, color_fw, color_afw, color_pfw, f'{name_2}_log.png')
-plot.sparsity(spars_fw, spars_afw, spars_pfw, color_fw, color_afw, color_pfw, name_3)
+# plot.loss(loss_fw, loss_afw, loss_pfw, False, color_fw, color_afw, color_pfw, name_1)
+# plot.duality_gap(gap_fw, gap_afw, gap_pfw, False, color_fw, color_afw, color_pfw, name_2)
+# plot.loss(loss_fw, loss_afw, loss_pfw, True, color_fw, color_afw, color_pfw, f'{name_1}_log.png')
+# plot.duality_gap(gap_fw, gap_afw, gap_pfw, True, color_fw, color_afw, color_pfw, f'{name_2}_log.png')
+# plot.sparsity(spars_fw, spars_afw, spars_pfw, color_fw, color_afw, color_pfw, name_3)
 plot.efficiency(time_fw, time_afw, time_pfw, gap_fw, gap_afw, gap_pfw, False, color_fw, color_afw, color_pfw, name_4)
 plot.efficiency(time_fw, time_afw, time_pfw, gap_fw, gap_afw, gap_pfw, True, color_fw, color_afw, color_pfw, f'{name_4}_log.png')
-plot.mse(mse_fw, mse_afw, mse_pfw, False, color_fw, color_afw, color_pfw, name_6)
-plot.mse(mse_fw, mse_afw, mse_pfw, True, color_fw, color_afw, color_pfw, f'{name_6}_log.png')
+# plot.mse(mse_fw, mse_afw, mse_pfw, False, color_fw, color_afw, color_pfw, name_6)
+# plot.mse(mse_fw, mse_afw, mse_pfw, True, color_fw, color_afw, color_pfw, f'{name_6}_log.png')
 # plot.weight_distr(fw_weights, afw, pfw, color_fw, color_afw, color_pfw, name_5)
+
+print(len(gap_fw))
+print(len(gap_afw))
+print(len(gap_pfw))
+print(len(time_afw))
 
 if PLOT:
     plt.show()

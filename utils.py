@@ -35,7 +35,7 @@ class plot:
 
 
     #  2: Duality Gap vs Iterazioni
-    def duality_gap(gap_fw, gap_afw, gap_pfw, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/2_duality_gap.png'):
+    def duality_gap(gap_fw, gap_afw, gap_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/2_duality_gap.png'):
         plt.figure(figsize=(8, 6))
         plt.plot(gap_fw, label='Standard FW', color=color_fw, linewidth=2)
         plt.plot(gap_afw, label='Away-Step FW', color=color_afw, linewidth=2)
