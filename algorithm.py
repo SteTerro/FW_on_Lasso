@@ -23,6 +23,7 @@ def compute_loss(X, y, x_weights):
     
     # 0.5 * L2_norm_squared
     loss = 0.5 * np.sum(residual ** 2)
+    # loss = (1/len(y)) * np.sum(residual ** 2)
     return loss
 
 def compute_gradient(X, y, x_weights):
@@ -78,21 +79,30 @@ class FrankWolfeLasso:
         self.history_gap = []
         self.history_time = []
         self.history_sparsity = []
+        self.mse = []
 
-    def update_history(self, X, y, gap, start):
+    def update_history(self, X, y, gap, start, mse):
         self.history_loss.append(compute_loss(X, y, self.x_t))
         self.history_gap.append(gap)
         self.history_time.append(time() - start)
         self.history_sparsity.append(np.sum(np.abs(self.x_t) > self.w_tolerance))
+        self.mse.append(mse)
 
     def get_history(self):
-        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity
+        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity, self.mse
 
     def get_number_non_zero_weights(self):
         return np.sum(np.abs(self.x_t) > self.w_tolerance)
 
     def get_non_zero_weights(self):
         return self.x_t[np.abs(self.x_t) > self.w_tolerance]
+
+    def predict(self, X):
+        return np.asarray(X, dtype=float) @ self.x_t
+
+    def mse_score(self, X, y):
+        y_pred = self.predict(X)
+        return np.mean((np.asarray(y) - y_pred) ** 2)
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -128,7 +138,9 @@ class FrankWolfeLasso:
             
             self.x_t = self.x_t + gamma * d_t
 
-            self.update_history(X, y, gap, t0)
+            mse = self.mse_score(X, y)
+
+            self.update_history(X, y, gap, t0, mse)
             
         return self.x_t
 
@@ -144,21 +156,30 @@ class AwayStepsFrankWolfeLasso:
         self.history_gap = []
         self.history_time = []
         self.history_sparsity = []
+        self.mse = []
 
-    def update_history(self, X, y, gap, start):
+    def update_history(self, X, y, gap, start, mse):
         self.history_loss.append(compute_loss(X, y, self.x_t))
         self.history_gap.append(gap)
         self.history_time.append(time() - start)
         self.history_sparsity.append(np.sum(np.abs(self.x_t) > self.w_tolerance))
+        self.mse.append(mse)
 
     def get_history(self):
-        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity
+        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity, self.mse
 
     def get_number_non_zero_weights(self):
         return np.sum(np.abs(self.x_t) > self.w_tolerance)
 
     def get_non_zero_weights(self):
         return self.x_t[np.abs(self.x_t) > self.w_tolerance]
+
+    def predict(self, X):
+        return np.asarray(X, dtype=float) @ self.x_t
+
+    def mse_score(self, X, y):
+        y_pred = self.predict(X)
+        return np.mean((np.asarray(y) - y_pred) ** 2)
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -270,7 +291,9 @@ class AwayStepsFrankWolfeLasso:
             #     self.weights[v_key] = 0.0
             #     del self.weights[v_key]
 
-            self.update_history(X, y, fw_gap, t0)            
+            mse = self.mse_score(X, y)  
+
+            self.update_history(X, y, fw_gap, t0, mse)   
 
         return self.x_t
 
@@ -285,21 +308,30 @@ class PairwiseFrankWolfeLasso:
         self.history_gap = []
         self.history_time = []
         self.history_sparsity = []
+        self.mse = []
 
-    def update_history(self, X, y, gap, start):
+    def update_history(self, X, y, gap, start, mse):
         self.history_loss.append(compute_loss(X, y, self.x_t))
         self.history_gap.append(gap)
         self.history_time.append(time() - start)
         self.history_sparsity.append(np.sum(np.abs(self.x_t) > self.w_tolerance))
+        self.mse.append(mse)
 
     def get_history(self):
-        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity
+        return self.history_loss, self.history_gap, self.history_time, self.history_sparsity, self.mse
 
     def get_number_non_zero_weights(self):
         return np.sum(np.abs(self.x_t) > self.w_tolerance)
 
     def get_non_zero_weights(self):
         return self.x_t[np.abs(self.x_t) > self.w_tolerance]
+
+    def predict(self, X):
+        return np.asarray(X, dtype=float) @ self.x_t
+
+    def mse_score(self, X, y):
+        y_pred = self.predict(X)
+        return np.mean((np.asarray(y) - y_pred) ** 2)
         
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -384,7 +416,9 @@ class PairwiseFrankWolfeLasso:
                 self.weights[v_key] = 0.0
                 del self.weights[v_key]
 
-            self.update_history(X, y, fw_gap, t0)            
+            mse = self.mse_score(X, y) 
+
+            self.update_history(X, y, fw_gap, t0, mse)            
 
         return self.x_t
 
