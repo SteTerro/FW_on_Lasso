@@ -1,3 +1,4 @@
+from numpy.random import gamma
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -69,13 +70,13 @@ def lmo_l1(gradient, tau):
 
 # 2. Frank-Wolfe algorithm for LASSO
 class FrankWolfeLasso:
-    def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
+    def __init__(self, tau, step_size='exact', max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
         self.tau = tau
+        self.step_size = step_size
         self.iter = max_iter
         self.tol = tolerance
         self.w_tolerance = w_tolerance
         self.convergence = False
-
 
         self.history_loss = []
         self.history_gap = []
@@ -102,16 +103,21 @@ class FrankWolfeLasso:
     def predict(self, X):
         return np.asarray(X, dtype=float) @ self.x_t
 
-    def predict_original_scale(self, X, y_scaler):
-        y_pred_scaled = self.predict(X)
-
-        return y_scaler.inverse_transform(
-            y_pred_scaled.reshape(-1, 1)
-        ).ravel()
-
     def mse_score(self, X, y):
         y_pred = self.predict(X)
         return np.mean((np.asarray(y) - y_pred) ** 2)
+
+    def line_search(self, X, grad, direction, gamma_max=1.0):
+        Xd = X @ direction
+        den = np.sum(Xd ** 2)
+        if den < 1e-10:
+            return 0.0
+
+        opt_alpha = -np.dot(grad, direction) / den
+        return np.clip(opt_alpha, 0.0, gamma_max)
+    
+    def diminishing_step_size(self, t, gamma_max=1.0):
+        return min(2.0 / (t + 2.0), gamma_max)
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -136,30 +142,28 @@ class FrankWolfeLasso:
             
             # 5. stopping criterion: if the gap is smaller than the tolerance, we stop
             if gap <= self.tol:
+                self.update_history(X, y, gap, t0, self.mse_score(X, y))
                 print(f"self.convergence obtained at iteration {t} with gap: {gap:.6f}")
-                self.convergence = True
             
             # 6. line search, choose gamma (learning rate)
-            Xd = X @ d_t
-            opt_gamma = gap / (np.sum(Xd ** 2) + 1e-10) 
-            
-            gamma = np.clip(opt_gamma, 0.0, 1.0)
+            if self.step_size == 'exact':
+                gamma = self.line_search(X, grad, d_t)
+            elif self.step_size == 'diminishing':
+                gamma = self.diminishing_step_size(t)
+            else:
+                raise ValueError("step_size must be either 'exact' or 'diminishing'")
             
             self.x_t = self.x_t + gamma * d_t
 
-            mse = self.mse_score(X, y)
-
-            self.update_history(X, y, gap, t0, mse)
-
-            if self.convergence:
-                break
+            self.update_history(X, y, gap, t0, self.mse_score(X, y))
             
         return self.x_t
 
 # 3. Away-step Frank-Wolfe for LASSO
 class AwayStepsFrankWolfeLasso:
-    def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
+    def __init__(self, tau, step_size='exact', max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
         self.tau = tau
+        self.step_size = step_size
         self.iter = max_iter
         self.tol = tolerance
         self.w_tolerance = w_tolerance
@@ -190,39 +194,21 @@ class AwayStepsFrankWolfeLasso:
     def predict(self, X):
         return np.asarray(X, dtype=float) @ self.x_t
 
-    def predict_original_scale(self, X, y_scaler):
-        y_pred_scaled = self.predict(X)
-
-        return y_scaler.inverse_transform(
-            y_pred_scaled.reshape(-1, 1)
-        ).ravel()
-
     def mse_score(self, X, y):
         y_pred = self.predict(X)
         return np.mean((np.asarray(y) - y_pred) ** 2)
 
-    def exact_line_search(self, X, y, grad, direction, alpha_max):
-        if np.max(np.abs(direction)) < 1e-14:
-            alpha = 0.0
-        else:
-            Xd = X @ direction
-            den = np.sum(Xd ** 2)
-            if den < 1e-10:
-                alpha = 0.0
-            else:
-                opt_alpha = -np.dot(grad, direction) / den
-                alpha = np.clip(opt_alpha, 0.0, alpha_max)
-        return alpha
-
-    def line_search(self, X, y, grad, direction, alpha_max):
+    def line_search(self, X, grad, direction, gamma_max):
         Xd = X @ direction
         den = np.sum(Xd ** 2)
         if den < 1e-10:
-            alpha = 0.0
-        else:
-            opt_alpha = -np.dot(grad, direction) / den
-            alpha = np.clip(opt_alpha, 0.0, alpha_max)
-        return alpha
+            return 0.0
+
+        opt_alpha = -np.dot(grad, direction) / den
+        return np.clip(opt_alpha, 0.0, gamma_max)
+
+    def diminishing_step_size(self, t, gamma_max):
+        return min(2.0 / (t + 2.0), gamma_max)
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -268,7 +254,8 @@ class AwayStepsFrankWolfeLasso:
 
             if fw_gap <= self.tol:
                 print(f"self.convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
-                self.convergence = True
+                self.update_history(X, y, fw_gap, t0, self.mse_score(X, y))   
+                break
 
             # direction and overflow protection
             away_gap = -np.dot(grad, self.x_t - v_vec)
@@ -287,7 +274,12 @@ class AwayStepsFrankWolfeLasso:
                 is_fw_step = False
 
             # EXACT LINE SEARCH
-            alpha = self.line_search(X, y, grad, direction, alpha_max)
+            if self.step_size == 'exact':
+                alpha = self.line_search(X, grad, direction, alpha_max)
+            elif self.step_size == 'diminishing':
+                alpha = self.diminishing_step_size(i, alpha_max)
+            else:
+                raise ValueError("step_size must be either 'exact' or 'diminishing'")
 
             # UPDATE x
             self.x_t = self.x_t + alpha * direction
@@ -325,18 +317,14 @@ class AwayStepsFrankWolfeLasso:
             #     self.weights[v_key] = 0.0
             #     del self.weights[v_key]
 
-            mse = self.mse_score(X, y)  
-
-            self.update_history(X, y, fw_gap, t0, mse)   
-
-            if self.convergence:
-                break
+            self.update_history(X, y, fw_gap, t0, self.mse_score(X, y))
 
         return self.x_t
 
 class PairwiseFrankWolfeLasso:
-    def __init__(self, tau, max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
+    def __init__(self, tau, step_size = 'exact', max_iter=1000, tolerance=1e-4, w_tolerance=1e-8):
         self.tau = tau
+        self.step_size = step_size
         self.iter = max_iter
         self.tol = tolerance
         self.w_tolerance = w_tolerance
@@ -368,26 +356,21 @@ class PairwiseFrankWolfeLasso:
     def predict(self, X):
         return np.asarray(X, dtype=float) @ self.x_t
 
-    def predict_original_scale(self, X, y_scaler):
-        y_pred_scaled = self.predict(X)
-
-        return y_scaler.inverse_transform(
-            y_pred_scaled.reshape(-1, 1)
-        ).ravel()
-
     def mse_score(self, X, y):
         y_pred = self.predict(X)
         return np.mean((np.asarray(y) - y_pred) ** 2)
 
-    def line_search(self, X, y, grad, direction, alpha_max):
+    def line_search(self, X, grad, direction, gamma_max):
         Xd = X @ direction
         den = np.sum(Xd ** 2)
         if den < 1e-10:
-            alpha = 0.0
-        else:
-            opt_alpha = -np.dot(grad, direction) / den
-            alpha = np.clip(opt_alpha, 0.0, alpha_max)
-        return alpha
+            return 0.0
+
+        opt_alpha = -np.dot(grad, direction) / den
+        return np.clip(opt_alpha, 0.0, gamma_max)
+
+    def diminishing_step_size(self, t, gamma_max):
+        return min(2.0 / (t + 2.0), gamma_max)
         
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -442,7 +425,12 @@ class PairwiseFrankWolfeLasso:
             alpha_max = self.weights[v_key]
 
             # 6. EXACT LINE SEARCH
-            alpha = self.line_search(X, y, grad, direction, alpha_max)
+            if self.step_size == 'exact':
+                alpha = self.line_search(X, grad, direction, alpha_max)
+            elif self.step_size == 'diminishing':
+                alpha = self.diminishing_step_size(i, alpha_max)
+            else:
+                raise ValueError("step_size must be either 'exact' or 'diminishing'")
 
             # 7. UPDATE x
             self.x_t = self.x_t + alpha * direction

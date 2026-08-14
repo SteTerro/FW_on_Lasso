@@ -16,21 +16,25 @@ PLOT = True
 
 print("1. Loading dataset...")
 
-# file_name = 'data/riboflavin.csv' 
-file_name = 'data/wikivital_mathematics.json'
+file_name = 'data/riboflavin.csv' 
+# file_name = 'data/wikivital_mathematics.json'
 
-# X, Y = read_data.csv(file_name)
-X, Y = read_data.json(file_name)
+X, Y = read_data.csv(file_name)
+# X, Y = read_data.json(file_name)
 
 # 0.12 ee (12/76)
-X_temp, X_test, y_temp, y_test = train_test_split(X, Y, test_size=0.12, random_state=42)
-X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=(0.12/0.76), random_state=42) # 0.25 x 0.8 = 0.2
+X_temp, X_test, y_temp, y_test = train_test_split(X, Y, test_size=0.15, random_state=42, shuffle=False)
+X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=(0.15/0.85), random_state=42, shuffle=False) # 0.25 x 0.8 = 0.2
 
 # X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.1, random_state=42) # 0.25 x 0.8 = 0.2
 
-print("\nTraining size: ", len(X_train))
-print("Validation size: ", len(X_val))
-# print("Test size: ", len(X_test))
+print("\nTraining size: ", X_train.shape)
+print("Validation size: ", X_val.shape)
+print("Test size: ", X_test.shape)
+
+print("\nTraining targets: ", y_train.shape)
+print("Validation targets: ", y_val.shape)
+print("Test targets: ", y_test.shape)
 
 print(f"Dataset dimensions: {X.shape[0]} observations, {X.shape[1]} features (genes)")
 
@@ -57,7 +61,7 @@ print(f"\n---> INITIAL LOSS (Baseline with zero weights): {baseline_loss:.4f} <-
 print(f"---> L1 Radius (Tau) set to: {TAU} <---")
 
 print("\n3. Standard Frank-Wolfe execution...")
-FWL = FrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
+FWL = FrankWolfeLasso(tau=TAU, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
 fw_fitted = FWL.fit(X_train, y_train)
 loss_fw, gap_fw, time_fw, spars_fw, mse_fw = FWL.get_history()
 fw_non_zero_weights = FWL.get_number_non_zero_weights()
@@ -70,9 +74,28 @@ print(f"Final loss: {loss_fw[-1]:.4f}")
 print(f"Final gap: {gap_fw[-1]:.6f}")
 print(f"Selected features: {fw_non_zero_weights} out of {X_train.shape[1]}")
 print(f"MSE on Val Set: {FWL.mse_score(X_val, y_val):.4f}")
+pred = FWL.predict(X_val)
+pred = pred.reshape(-1, 1)
+pred = scaler_y.inverse_transform(pred)
+y_val_real = scaler_y.inverse_transform(y_val.reshape(-1, 1))
+print(pred - y_val_real)
+
+data2 = np.concatenate((X_train, X_val), axis=0)
+y2 = np.concatenate((y_train, y_val), axis=0)
+
+FWL = FrankWolfeLasso(tau=TAU, step_size='diminishing',max_iter=ITER, tolerance=TOLERANCE)
+fw_fitted = FWL.fit(data2, y2)
+pred = FWL.predict(X_test)
+pred = pred.reshape(-1, 1)
+pred = scaler_y.inverse_transform(pred)
+y_test_real = scaler_y.inverse_transform(y_test.reshape(-1, 1))
+print(pred - y_test_real)
+print(f"MSE on Test Set: {FWL.mse_score(X_test, y_test):.4f}")
+
+
 
 print("\n4. Away-Step Frank-Wolfe (AFW) execution...")
-AFWL = AwayStepsFrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
+AFWL = AwayStepsFrankWolfeLasso(tau=TAU, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
 afw_fittet = AFWL.fit(X_train, y_train)
 loss_afw, gap_afw, time_afw, spars_afw, mse_afw = AFWL.get_history()
 afw_non_zero_weights = AFWL.get_number_non_zero_weights()

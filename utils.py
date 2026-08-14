@@ -3,6 +3,12 @@ import json
 import numpy as np
 import pandas as pd
 
+def sort_by_time(time_data, gap_data):
+    time_arr = np.array(time_data)
+    gap_arr = np.array(gap_data)
+    sort_indices = np.argsort(time_arr)
+    return time_arr[sort_indices], gap_arr[sort_indices]
+
 class plot:
     def __init__(self, fw, afw, pfw, name, folder = 'image'):
         pass
@@ -67,6 +73,7 @@ class plot:
 
     #  4: Duality Gap vs CPU Time (Efficienza)
     def efficiency(time_fw, time_afw, time_pfw, gap_fw, gap_afw, gap_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/4_cpu_time.png'):
+
         plt.figure(figsize=(8, 6))
         plt.plot(time_fw, gap_fw, label='Standard FW', color=color_fw, linewidth=2)
         plt.plot(time_afw, gap_afw, label='Away-Step FW', color=color_afw, linewidth=2)
