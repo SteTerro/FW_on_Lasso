@@ -1,4 +1,7 @@
 import matplotlib.pyplot as plt
+import json
+import numpy as np
+import pandas as pd
 
 class plot:
     def __init__(self, fw, afw, pfw, name, folder = 'image'):
@@ -130,3 +133,37 @@ class plot:
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         plt.savefig(name, dpi=300) 
+
+class read_data:
+    def __init__(self):
+        pass
+
+    def json(file):
+        try:
+            with open(file, 'r') as file:
+                dataset_json = json.load(file)
+            # Extract the data ignoring the "edges" key (the graph structure)
+            daily_visits = []
+            # Take the days in chronological order (numeric keys)
+            days = sorted([k for k in dataset_json.keys() if k.isdigit()], key=int)
+            
+            for day in days:
+                daily_visits.append(dataset_json[day]['y'])
+                
+            # Create the matrix: 731 days (rows) x 1068 pages (columns)
+            data_matrix = np.array(daily_visits)
+            
+            # SETUP FOR LASSO: decide to take the first page's visits (target) 
+            # using the visits of all other 1067 pages (features)
+            Y = data_matrix[:, 0]  
+            X = data_matrix[:, 1:]
+            return X, Y
+        except FileNotFoundError:
+            print(f"\nERROR: file not found '{file}'.")
+
+    def csv(file):
+        df = pd.read_csv(file)
+        target_col = 'y'
+        Y = df[target_col].values
+        X = df.drop(columns=[target_col]).values
+        return X, Y

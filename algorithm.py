@@ -74,6 +74,8 @@ class FrankWolfeLasso:
         self.iter = max_iter
         self.tol = tolerance
         self.w_tolerance = w_tolerance
+        self.convergence = False
+
 
         self.history_loss = []
         self.history_gap = []
@@ -99,6 +101,13 @@ class FrankWolfeLasso:
 
     def predict(self, X):
         return np.asarray(X, dtype=float) @ self.x_t
+
+    def predict_original_scale(self, X, y_scaler):
+        y_pred_scaled = self.predict(X)
+
+        return y_scaler.inverse_transform(
+            y_pred_scaled.reshape(-1, 1)
+        ).ravel()
 
     def mse_score(self, X, y):
         y_pred = self.predict(X)
@@ -127,8 +136,8 @@ class FrankWolfeLasso:
             
             # 5. stopping criterion: if the gap is smaller than the tolerance, we stop
             if gap <= self.tol:
-                print(f"Convergence obtained at iteration {t} with gap: {gap:.6f}")
-                break
+                print(f"self.convergence obtained at iteration {t} with gap: {gap:.6f}")
+                self.convergence = True
             
             # 6. line search, choose gamma (learning rate)
             Xd = X @ d_t
@@ -141,6 +150,9 @@ class FrankWolfeLasso:
             mse = self.mse_score(X, y)
 
             self.update_history(X, y, gap, t0, mse)
+
+            if self.convergence:
+                break
             
         return self.x_t
 
@@ -151,6 +163,7 @@ class AwayStepsFrankWolfeLasso:
         self.iter = max_iter
         self.tol = tolerance
         self.w_tolerance = w_tolerance
+        self.convergence = False
 
         self.history_loss = []
         self.history_gap = []
@@ -177,9 +190,39 @@ class AwayStepsFrankWolfeLasso:
     def predict(self, X):
         return np.asarray(X, dtype=float) @ self.x_t
 
+    def predict_original_scale(self, X, y_scaler):
+        y_pred_scaled = self.predict(X)
+
+        return y_scaler.inverse_transform(
+            y_pred_scaled.reshape(-1, 1)
+        ).ravel()
+
     def mse_score(self, X, y):
         y_pred = self.predict(X)
         return np.mean((np.asarray(y) - y_pred) ** 2)
+
+    def exact_line_search(self, X, y, grad, direction, alpha_max):
+        if np.max(np.abs(direction)) < 1e-14:
+            alpha = 0.0
+        else:
+            Xd = X @ direction
+            den = np.sum(Xd ** 2)
+            if den < 1e-10:
+                alpha = 0.0
+            else:
+                opt_alpha = -np.dot(grad, direction) / den
+                alpha = np.clip(opt_alpha, 0.0, alpha_max)
+        return alpha
+
+    def line_search(self, X, y, grad, direction, alpha_max):
+        Xd = X @ direction
+        den = np.sum(Xd ** 2)
+        if den < 1e-10:
+            alpha = 0.0
+        else:
+            opt_alpha = -np.dot(grad, direction) / den
+            alpha = np.clip(opt_alpha, 0.0, alpha_max)
+        return alpha
     
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -224,8 +267,8 @@ class AwayStepsFrankWolfeLasso:
             fw_gap = -np.dot(grad, s_vec - self.x_t)
 
             if fw_gap <= self.tol:
-                print(f"Convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
-                break
+                print(f"self.convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
+                self.convergence = True
 
             # direction and overflow protection
             away_gap = -np.dot(grad, self.x_t - v_vec)
@@ -244,16 +287,7 @@ class AwayStepsFrankWolfeLasso:
                 is_fw_step = False
 
             # EXACT LINE SEARCH
-            if np.max(np.abs(direction)) < 1e-14:
-                alpha = 0.0
-            else:
-                Xd = X @ direction
-                den = np.sum(Xd ** 2)
-                if den < 1e-10:
-                    alpha = 0.0
-                else:
-                    opt_alpha = -np.dot(grad, direction) / den
-                    alpha = np.clip(opt_alpha, 0.0, alpha_max)
+            alpha = self.line_search(X, y, grad, direction, alpha_max)
 
             # UPDATE x
             self.x_t = self.x_t + alpha * direction
@@ -295,6 +329,9 @@ class AwayStepsFrankWolfeLasso:
 
             self.update_history(X, y, fw_gap, t0, mse)   
 
+            if self.convergence:
+                break
+
         return self.x_t
 
 class PairwiseFrankWolfeLasso:
@@ -303,6 +340,8 @@ class PairwiseFrankWolfeLasso:
         self.iter = max_iter
         self.tol = tolerance
         self.w_tolerance = w_tolerance
+        self.convergence = False
+
 
         self.history_loss = []
         self.history_gap = []
@@ -329,9 +368,26 @@ class PairwiseFrankWolfeLasso:
     def predict(self, X):
         return np.asarray(X, dtype=float) @ self.x_t
 
+    def predict_original_scale(self, X, y_scaler):
+        y_pred_scaled = self.predict(X)
+
+        return y_scaler.inverse_transform(
+            y_pred_scaled.reshape(-1, 1)
+        ).ravel()
+
     def mse_score(self, X, y):
         y_pred = self.predict(X)
         return np.mean((np.asarray(y) - y_pred) ** 2)
+
+    def line_search(self, X, y, grad, direction, alpha_max):
+        Xd = X @ direction
+        den = np.sum(Xd ** 2)
+        if den < 1e-10:
+            alpha = 0.0
+        else:
+            opt_alpha = -np.dot(grad, direction) / den
+            alpha = np.clip(opt_alpha, 0.0, alpha_max)
+        return alpha
         
     def fit(self, X, y):
         n_samples, n_features = X.shape
@@ -375,8 +431,8 @@ class PairwiseFrankWolfeLasso:
             fw_gap = -np.dot(grad, s_vec - self.x_t)
 
             if fw_gap <= self.tol:
-                print(f"PFW Convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
-                break
+                print(f"PFW self.convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
+                self.convergence = True
 
             # 5. PAIRWISE DIRECTION
             # direct transfer of mass from the worst vertex (v_vec) to the best vertex (s_vec)
@@ -386,13 +442,7 @@ class PairwiseFrankWolfeLasso:
             alpha_max = self.weights[v_key]
 
             # 6. EXACT LINE SEARCH
-            Xd = X @ direction
-            den = np.sum(Xd ** 2)
-            if den < 1e-10:
-                alpha = 0.0
-            else:
-                opt_alpha = -np.dot(grad, direction) / den
-                alpha = np.clip(opt_alpha, 0.0, alpha_max)
+            alpha = self.line_search(X, y, grad, direction, alpha_max)
 
             # 7. UPDATE x
             self.x_t = self.x_t + alpha * direction
@@ -418,7 +468,10 @@ class PairwiseFrankWolfeLasso:
 
             mse = self.mse_score(X, y) 
 
-            self.update_history(X, y, fw_gap, t0, mse)            
+            self.update_history(X, y, fw_gap, t0, mse)  
+
+            if self.convergence:
+                break          
 
         return self.x_t
 

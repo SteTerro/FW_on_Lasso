@@ -3,28 +3,34 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
-from utils import plot
+from utils import plot, read_data
 from sklearn.model_selection import train_test_split
+import json
 
 # Global variables
 # TAU = 1.0
 TAU = 1
 ITER = 1000
 TOLERANCE = 1e-4
+PLOT = True
 
-print("1. Loading Riboflavin dataset...")
+print("1. Loading dataset...")
 
-file_name = 'data/riboflavin.csv' 
+# file_name = 'data/riboflavin.csv' 
+file_name = 'data/wikivital_mathematics.json'
 
-df = pd.read_csv(file_name)
-target_col = 'y' 
+# X, Y = read_data.csv(file_name)
+X, Y = read_data.json(file_name)
 
-Y = df[target_col].values
-X = df.drop(columns=[target_col]).values
-
+# 0.12 ee (12/76)
 X_temp, X_test, y_temp, y_test = train_test_split(X, Y, test_size=0.12, random_state=42)
-X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=(12/76), random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=(0.12/0.76), random_state=42) # 0.25 x 0.8 = 0.2
 
+# X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.1, random_state=42) # 0.25 x 0.8 = 0.2
+
+print("\nTraining size: ", len(X_train))
+print("Validation size: ", len(X_val))
+# print("Test size: ", len(X_test))
 
 print(f"Dataset dimensions: {X.shape[0]} observations, {X.shape[1]} features (genes)")
 
@@ -120,7 +126,7 @@ plot.mse(mse_fw, mse_afw, mse_pfw, False, color_fw, color_afw, color_pfw, name_6
 plot.mse(mse_fw, mse_afw, mse_pfw, True, color_fw, color_afw, color_pfw, f'{name_6}_log.png')
 # plot.weight_distr(fw_weights, afw, pfw, color_fw, color_afw, color_pfw, name_5)
 
-# Display plot
-plt.show()
+if PLOT:
+    plt.show()
 
 print("Script completed successfully! Graphs have been saved in the project folder.")
