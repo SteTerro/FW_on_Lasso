@@ -531,4 +531,3 @@ class PairwiseFrankWolfeLasso:
             self.update_history(X, y, fw_gap, t0, self.mse_score(X, y), i)   
 
         return self.x_t
-
