@@ -13,11 +13,11 @@ class plot:
     def __init__(self, fw, afw, pfw, name, folder = 'image'):
         pass
 
-    def loss(loss_fw, loss_afw, loss_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/1_loss_convergence.png'):
+    def loss(loss_fw, loss_afw, loss_pfw, iter_fw, iter_afw, iter_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/1_loss_convergence.png'):
         plt.figure(figsize=(8, 6))
-        plt.plot(loss_fw, label='Standard FW', color=color_fw, linewidth=2)
-        plt.plot(loss_afw, label='Away-Step FW', color=color_afw, linewidth=2)
-        plt.plot(loss_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+        plt.plot(iter_fw, loss_fw, label='Standard FW', color=color_fw, linewidth=2)
+        plt.plot(iter_afw, loss_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+        plt.plot(iter_pfw, loss_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
 
         plt.title('Loss Convergence vs Iterations')
         plt.xlabel('Iterations')
@@ -35,11 +35,11 @@ class plot:
 
 
     #  2: Duality Gap vs Iterazioni
-    def duality_gap(gap_fw, gap_afw, gap_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/2_duality_gap.png'):
+    def duality_gap(gap_fw, gap_afw, gap_pfw, iter_fw, iter_afw, iter_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/2_duality_gap.png'):
         plt.figure(figsize=(8, 6))
-        plt.plot(gap_fw, label='Standard FW', color=color_fw, linewidth=2)
-        plt.plot(gap_afw, label='Away-Step FW', color=color_afw, linewidth=2)
-        plt.plot(gap_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+        plt.plot(iter_fw, gap_fw, label='Standard FW', color=color_fw, linewidth=2)
+        plt.plot(iter_afw, gap_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+        plt.plot(iter_pfw, gap_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
 
         plt.title('Duality Gap vs Iterations')
         plt.xlabel('Iterations')
@@ -56,11 +56,11 @@ class plot:
         plt.savefig(name, dpi=300)
 
     #  3: Sparsity (Feature Attive) vs Iterations 
-    def sparsity(spars_fw, spars_afw, spars_pfw, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/3_sparsity.png'):
+    def sparsity(spars_fw, spars_afw, spars_pfw, iter_fw, iter_afw, iter_pfw, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/3_sparsity.png'):
         plt.figure(figsize=(8, 6))
-        plt.plot(spars_fw, label='Standard FW', color=color_fw, linewidth=2)
-        plt.plot(spars_afw, label='Away-Step FW', color=color_afw, linewidth=2)
-        plt.plot(spars_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+        plt.plot(iter_fw, spars_fw, label='Standard FW', color=color_fw, linewidth=2)
+        plt.plot(iter_afw, spars_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+        plt.plot(iter_pfw, spars_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
 
         plt.title('Sparsity (Active Set dimension) vs Iterations')
         plt.xlabel('Iterations')
@@ -121,11 +121,11 @@ class plot:
         plt.savefig(name, dpi=300)
         plt.show()
 
-    def mse(mse_fw, mse_afw, mse_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/6_mse.png'):
+    def mse(mse_fw, mse_afw, mse_pfw, iter_fw, iter_afw, iter_pfw, log_scale = False, color_fw = "#48a1e1", color_afw = "#ff0ea3", color_pfw = "#38d238", name = 'image/6_mse.png'):
         plt.figure(figsize=(8, 6))
-        plt.plot(mse_fw, label='Standard FW', color=color_fw, linewidth=2)
-        plt.plot(mse_afw, label='Away-Step FW', color=color_afw, linewidth=2)
-        plt.plot(mse_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
+        plt.plot(iter_fw, mse_fw, label='Standard FW', color=color_fw, linewidth=2)
+        plt.plot(iter_afw, mse_afw, label='Away-Step FW', color=color_afw, linewidth=2)
+        plt.plot(iter_pfw, mse_pfw, label='Pairwise FW', color=color_pfw, linewidth=2)
 
         plt.title('MSE vs Iterations')
         plt.xlabel('Iterations')

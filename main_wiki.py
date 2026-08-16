@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from utils import plot
 
 TAU = 0.5
-ITER = 1000
+ITER = 40
 TOLERANCE = 1e-4
 
 print("1. Loading dataset Math Essentials...")
