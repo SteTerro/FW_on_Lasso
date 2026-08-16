@@ -10,6 +10,10 @@ import os
 import time
 import datetime
 from datetime import datetime
+import random
+
+np.random.seed(42)
+random.seed(42)
 
 def build_history_df(algo_name, iters, loss, gap, time, spars, mse, step_size):
     return pd.DataFrame({
@@ -22,6 +26,7 @@ def build_history_df(algo_name, iters, loss, gap, time, spars, mse, step_size):
         'spars': spars,
         'mse': mse
     })
+
 
 # Global variables
 TAU = 1.0
