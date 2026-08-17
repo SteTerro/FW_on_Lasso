@@ -259,29 +259,29 @@ name_2 = f'image/2_duality_gap_FW_{ITER}_{tau_str}'
 name_3 = f'image/3_sparsity_FW_{ITER}_{tau_str}'
 name_4 = f'image/6_mse_FW_{ITER}_{tau_str}'
 
-plot = plot()
-# plot.loss(RESULTS, 'iter', False, name = f"{name_1}.png")
-# plot.duality_gap(RESULTS, 'iter', False, name = f"{name_2}.png")
-# plot.sparsity(RESULTS, 'iter', False, name = f"{name_3}.png")
-# plot.mse(RESULTS, 'iter', False, name = f"{name_4}.png")
+plotter = plot()
+# plotter.loss(RESULTS, 'iter', False, name = f"{name_1}.png", plotted = PLOT)
+plotter.duality_gap(RESULTS, 'iter', False, name = f"{name_2}.png", plotted = PLOT)
+# plotter.sparsity(RESULTS, 'iter', False, name = f"{name_3}.png", plotted = PLOT)
+# plotter.mse(RESULTS, 'iter', False, name = f"{name_4}.png", plotted = PLOT)
 
-# plot.loss(RESULTS, 'iter', True, name = f"{name_1}_log.png")
-plot.duality_gap(RESULTS, 'iter', True, name = f"{name_2}_log.png")
-# plot.sparsity(RESULTS, 'iter', True, name = f"{name_3}_log.png")
-# plot.mse(RESULTS, 'iter', True, name = f"{name_4}_log.png")
+# plotter.loss(RESULTS, 'iter', True, name = f"{name_1}_log.png", plotted = PLOT)
+plotter.duality_gap(RESULTS, 'iter', True, name = f"{name_2}_log.png", plotted = PLOT)
+# plotter.sparsity(RESULTS, 'iter', True, name = f"{name_3}_log.png", plotted = PLOT)
+# plotter.mse(RESULTS, 'iter', True, name = f"{name_4}_log.png", plotted = PLOT)
 
-# plot.loss(RESULTS, 'time', False, name = f"{name_1}_time.png")
-# plot.duality_gap(RESULTS, 'time', False, name = f"{name_2}_time.png")
-# plot.sparsity(RESULTS, 'time', False, name = f"{name_3}_time.png")
-# plot.mse(RESULTS, 'time', False, name = f"{name_4}_time.png")
+# plotter.loss(RESULTS, 'time', False, name = f"{name_1}_time.png", plotted = PLOT)
+# plotter.duality_gap(RESULTS, 'time', False, name = f"{name_2}_time.png", plotted = PLOT)
+# plotter.sparsity(RESULTS, 'time', False, name = f"{name_3}_time.png", plotted = PLOT)
+# plotter.mse(RESULTS, 'time', False, name = f"{name_4}_time.png", plotted = PLOT)
 
-# plot.loss(RESULTS, 'time', True, name = f"{name_1}_time_log.png")
-# plot.duality_gap(RESULTS, 'time', True, name = f"{name_2}_time_log.png")
-# plot.sparsity(RESULTS, 'time', True, name = f"{name_3}_time_log.png")
-# plot.mse(RESULTS, 'time', True, name = f"{name_4}_time_log.png")
+# plotter.loss(RESULTS, 'time', True, name = f"{name_1}_time_log.png", plotted = PLOT)
+# plotter.duality_gap(RESULTS, 'time', True, name = f"{name_2}_time_log.png", plotted = PLOT)
+# plotter.sparsity(RESULTS, 'time', True, name = f"{name_3}_time_log.png", plotted = PLOT)
+# plotter.mse(RESULTS, 'time', True, name = f"{name_4}_time_log.png", plotted = PLOT)
 
-if PLOT:
-    plt.show()
+# if PLOT:
+#     plt.show()
 
 print("\n7. Writing Results to file...")
 

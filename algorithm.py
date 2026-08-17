@@ -149,7 +149,7 @@ class FrankWolfeLasso:
             # 5. stopping criterion: if the gap is smaller than the tolerance, we stop
             if gap <= self.tol:
                 self.update_history(X, y, gap, t0, self.mse_score(X, y), t)
-                print(f"self.convergence obtained at iteration {t} with gap: {gap:.6f}")
+                # print(f"FW convergence obtained at iteration {t} with gap: {gap:.6f}")
                 break
             
             # 6. line search, choose gamma (learning rate)
@@ -302,7 +302,7 @@ class AwayStepsFrankWolfeLasso:
             fw_gap = -np.dot(grad, s_vec - self.x_t)
 
             if fw_gap <= self.tol:
-                print(f"self.convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
+                # print(f"AFW convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
                 self.update_history(X, y, fw_gap, t0, self.mse_score(X, y), i)   
                 break
 
@@ -476,7 +476,7 @@ class PairwiseFrankWolfeLasso:
 
             if fw_gap <= self.tol:
                 self.update_history(X, y, fw_gap, t0, self.mse_score(X, y), i)   
-                print(f"PFW self.convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
+                # print(f"PFW convergence obtained at iteration {i} with gap: {fw_gap:.6f}")
                 break
 
             # 5. PAIRWISE DIRECTION
