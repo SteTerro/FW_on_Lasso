@@ -1,0 +1,136 @@
+#from algorithm import FrankWolfeLasso, AwayStepsFrankWolfeLasso, PairwiseFrankWolfeLasso
+import numpy as np
+from sklearn.model_selection import train_test_split
+#import matplotlib.pyplot as plt
+#from utils import plot
+import os
+import re
+import glob
+from PIL import Image
+"""
+Load random subset of UTKFace dataset from local folder (data/UTKFace),
+transform it into a matrix X (flattened pixels, grayscale) and a vector y (age) for a LASSO regression problem with p >> n.
+
+We use .gitignore to exclude the "data/" folder from Git: images remain locally for development, 
+without bloating the repository.
+
+Expected file name format: [age]_[gender]_[ethnicity]_[timestamp].jpg 
+"""
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+IMAGES_DIR = os.path.join(PROJECT_ROOT, "data", "UTKFace")
+
+IMG_SIZE = 32           # ridimensioniamo ogni immagine a IMG_SIZE x IMG_SIZE
+                         # -> p = IMG_SIZE * IMG_SIZE (scala di grigi, 1 canale)
+N_SAMPLES = 100          # numero di immagini campionate casualmente dal dataset
+                         # completo, per garantire p >> n (p=1024 con IMG_SIZE=32)
+
+
+def _parse_age_from_filename(filename: str):
+    """
+    Extract age from UTKFace filename.
+
+    Expected format: [age]_[gender]_[ethnicity]_[timestamp].jpg
+
+    Returns None if the filename does not match the expected format 
+    """
+    basename = os.path.basename(filename)
+    match = re.match(r"^(\d+)_", basename)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
+def load_utkface(
+    img_size: int = IMG_SIZE,
+    n_samples: int = N_SAMPLES,
+    test_size: float = 0.3,
+    standardize: bool = True,
+    random_state: int = 42,
+):
+    """
+    Load a random subset of n_samples images from UTKFace,
+    convert them to grayscale, resize them, flatten them into
+    pixel vectors, and construct X (features=pixels) and y (target=age).
+
+    Returns a dictionary with X_train, X_test, y_train, y_test, n, p.
+    """
+    if not os.path.isdir(IMAGES_DIR):
+        raise FileNotFoundError(
+            f"Folder not found: {IMAGES_DIR}\n"
+            "Make sure the UTKFace images are extracted in "
+            "'data/UTKFace/' beside this script."
+        )
+
+    # IN TEORIA dovrebbero essere tutte in .jpg
+    # hanno anche tripla estensione ma tanto prende l'ultima
+    all_files = glob.glob(os.path.join(IMAGES_DIR, "*.jpg"))
+    all_files += glob.glob(os.path.join(IMAGES_DIR, "*.jpg.chip")) # per sicurezza
+    if len(all_files) == 0:
+        raise FileNotFoundError(f"No images found in {IMAGES_DIR}")
+
+    print(f"Found {len(all_files)} images in UTKFace.")
+
+    # Random sampling of n_samples images (to ensure p >> n)
+    rng = np.random.default_rng(random_state)
+    sampled_files = rng.choice(all_files, size=min(n_samples, len(all_files)), replace=False)
+
+    X_list = []
+    y_list = []
+    skipped = 0
+
+    for filepath in sampled_files:
+        age = _parse_age_from_filename(filepath)
+        if age is None:
+            skipped += 1
+            continue
+
+        # Load image, convert to grayscale ("L"), resize
+        img = Image.open(filepath).convert("L").resize((img_size, img_size))
+        pixel_vector = np.asarray(img, dtype=np.float64).flatten()  # p = img_size^2
+
+        X_list.append(pixel_vector)
+        y_list.append(age)
+
+    if skipped > 0:
+        print(f"Warning: {skipped} files skipped for non-conforming filenames.")
+
+    X = np.vstack(X_list)                    # shape (n, p)
+    y = np.array(y_list, dtype=np.float64)   # shape (n,)
+
+    n, p = X.shape
+    print(f"Dataset constructed: n={n} images, p={p} pixels (ratio p/n = {p/n:.2f})")
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
+
+    if standardize:
+        # standardization fit-only-on-train, same logic used for Riboflavin and Wikipedia Math: 
+        # avoids data leakage and puts all pixels on the same scale before L1 penalty.
+        mu_X, sigma_X = X_train.mean(axis=0), X_train.std(axis=0)
+        sigma_X[sigma_X == 0] = 1.0  # constant pixel values
+        X_train = (X_train - mu_X) / sigma_X
+        X_test = (X_test - mu_X) / sigma_X
+
+        mu_y = y_train.mean()
+        y_train = y_train - mu_y
+        y_test = y_test - mu_y
+
+    return {
+        "X_train": X_train,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "n": n,
+        "p": p,
+        "img_size": img_size,
+    }
+
+
+if __name__ == "__main__":
+    data = load_utkface()
+    print("\nShape training set:", data["X_train"].shape)
+    print("Shape test set:    ", data["X_test"].shape)
+    print("Minimum/maximum age (after centering, therefore relative to the mean):",
+          data["y_train"].min(), data["y_train"].max())
