@@ -31,7 +31,7 @@ def build_history_df(algo_name, iters, loss, gap, time, spars, mse, step_size):
 # Global variables
 TAU = 0.5
 tau_str = str(TAU).replace('.','p')
-ITER = 1000
+ITER = 200
 TOLERANCE = 1e-4
 # STEP = 'exact'
 
@@ -113,16 +113,16 @@ fw_non_zero_weights_d = FWLD.get_number_non_zero_weights()
 fw_weights_d = FWLD.get_non_zero_weights()
 fw_mse_d = FWLD.mse_score(X_test, y_test)
 
-# RESULTS = pd.concat([RESULTS,pd.DataFrame({
-#         'run': int(r),
-#         'algorithm': 'FW_diminishing',
-#         'step_size': 'diminishing',
-#         'iter': iter_fw_d,
-#         'time': time_fw_d,
-#         'loss': loss_fw_d,
-#         'gap': gap_fw_d,
-#         'spars': spars_fw_d,
-#         'mse': mse_fw_d})])
+RESULTS = pd.concat([RESULTS,pd.DataFrame({
+        'run': int(r),
+        'algorithm': 'FW_diminishing',
+        'step_size': 'diminishing',
+        'iter': iter_fw_d,
+        'time': time_fw_d,
+        'loss': loss_fw_d,
+        'gap': gap_fw_d,
+        'spars': spars_fw_d,
+        'mse': mse_fw_d})])
 
 print("\n3.B. Standard Frank-Wolfe execution (exact step)...")
 FWLE = FrankWolfeLasso(tau=TAU, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -132,16 +132,16 @@ fw_non_zero_weights_e = FWLE.get_number_non_zero_weights()
 fw_weights_e = FWLE.get_non_zero_weights()
 fw_mse_e = FWLE.mse_score(X_test, y_test)
 
-# RESULTS = pd.concat([RESULTS,pd.DataFrame({
-#         'run': int(r),
-#         'algorithm': 'FW_exact',
-#         'step_size': 'exact',
-#         'iter': iter_fw_e,
-#         'time': time_fw_e,
-#         'loss': loss_fw_e,
-#         'gap': gap_fw_e,
-#         'spars': spars_fw_e,
-#         'mse': mse_fw_e})])
+RESULTS = pd.concat([RESULTS,pd.DataFrame({
+        'run': int(r),
+        'algorithm': 'FW_exact',
+        'step_size': 'exact',
+        'iter': iter_fw_e,
+        'time': time_fw_e,
+        'loss': loss_fw_e,
+        'gap': gap_fw_e,
+        'spars': spars_fw_e,
+        'mse': mse_fw_e})])
 
 print("\n4.A. Away-Step Frank-Wolfe (AFW) execution (diminishing step)...")
 AFWLD = AwayStepsFrankWolfeLasso(tau=TAU, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
@@ -170,16 +170,16 @@ afw_non_zero_weights_e = AFWLE.get_number_non_zero_weights()
 afw_weights_e = AFWLE.get_non_zero_weights()
 afw_mse_e = AFWLE.mse_score(X_test, y_test)
 
-# RESULTS = pd.concat([RESULTS,pd.DataFrame({
-#         'run': int(r),
-#         'algorithm': 'AFW_exact',
-#         'step_size': 'exact',
-#         'iter': iter_afw_e,
-#         'time': time_afw_e,
-#         'loss': loss_afw_e,
-#         'gap': gap_afw_e,
-#         'spars': spars_afw_e,
-#         'mse': mse_afw_e})])
+RESULTS = pd.concat([RESULTS,pd.DataFrame({
+        'run': int(r),
+        'algorithm': 'AFW_exact',
+        'step_size': 'exact',
+        'iter': iter_afw_e,
+        'time': time_afw_e,
+        'loss': loss_afw_e,
+        'gap': gap_afw_e,
+        'spars': spars_afw_e,
+        'mse': mse_afw_e})])
 
 print("\n5.A Pairwise Frank-Wolfe (PFW) execution (diminishing step)...")
 PFWLD = PairwiseFrankWolfeLasso(tau=TAU, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)

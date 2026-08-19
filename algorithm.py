@@ -1,4 +1,4 @@
-from numpy.random import gamma
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -6,10 +6,7 @@ from sklearn.datasets import make_regression
 import json
 from time import time
 
-# Set REDUCTION to True so that diminishing step size uses backtracking 
-# (Armijo rule) to guarantee descent, fixing the instability in AFW and PFW.
-# Since we now use residual updates, this backtracking takes O(n) instead of O(nd).
-REDUCTION = False
+
 
 # ============================
 # STEP 1: LASSO implementation 
@@ -118,10 +115,6 @@ class FrankWolfeLasso:
                     gamma = np.clip(opt_alpha, 0.0, 1.0)
             elif self.step_size == 'diminishing':
                 gamma = min(2.0 / (t + 2.0), 1.0)
-                if REDUCTION:
-                    loss_before = 0.5 * np.sum(self.residual ** 2)
-                    while gamma > 1e-14 and 0.5 * np.sum((self.residual + gamma * Xd) ** 2) > loss_before:
-                        gamma *= 0.5
             else:
                 raise ValueError("step_size must be either 'exact' or 'diminishing'")
             
@@ -254,24 +247,8 @@ class AwayStepsFrankWolfeLasso:
                     opt_alpha = -dir_dot_grad / den
                     alpha = np.clip(opt_alpha, 0.0, alpha_max)
             elif self.step_size == 'diminishing':
-                den = np.sum(Xd ** 2)
-                opt_alpha = -dir_dot_grad / max(den, 1e-12) if den > 1e-10 else 0.0
                 gamma = 2.0 / (i + 2.0)
-                
-                # Cap the diminishing step with the local curvature to prevent overshooting
-                # This guarantees it won't oscillate even if REDUCTION is False.
-                alpha = min(gamma, opt_alpha)
-                
-                # Heuristic to allow Drop Steps and speed up convergence
-                if alpha_max > 0 and gamma >= 0.5 * alpha_max and opt_alpha >= alpha_max:
-                    alpha = alpha_max
-                else:
-                    alpha = min(alpha, alpha_max)
-
-                if REDUCTION:
-                    loss_before = 0.5 * np.sum(self.residual ** 2)
-                    while alpha > 1e-14 and 0.5 * np.sum((self.residual + alpha * Xd) ** 2) > loss_before:
-                        alpha *= 0.5
+                alpha = min(gamma, alpha_max)
             else:
                 raise ValueError("step_size must be either 'exact' or 'diminishing'")
 
@@ -416,24 +393,8 @@ class PairwiseFrankWolfeLasso:
                     opt_alpha = -dir_dot_grad / den
                     alpha = np.clip(opt_alpha, 0.0, alpha_max)
             elif self.step_size == 'diminishing':
-                den = np.sum(Xd ** 2)
-                opt_alpha = -dir_dot_grad / max(den, 1e-12) if den > 1e-10 else 0.0
                 gamma = 2.0 / (i + 2.0)
-                
-                # Cap the diminishing step with the local curvature to prevent overshooting
-                # This guarantees it won't oscillate even if REDUCTION is False.
-                alpha = min(gamma, opt_alpha)
-                
-                # Heuristic to allow Drop Steps and speed up convergence
-                if alpha_max > 0 and gamma >= 0.5 * alpha_max and opt_alpha >= alpha_max:
-                    alpha = alpha_max
-                else:
-                    alpha = min(alpha, alpha_max)
-
-                if REDUCTION:
-                    loss_before = 0.5 * np.sum(self.residual ** 2)
-                    while alpha > 1e-14 and 0.5 * np.sum((self.residual + alpha * Xd) ** 2) > loss_before:
-                        alpha *= 0.5
+                alpha = min(gamma, alpha_max)
             else:
                 raise ValueError("step_size must be either 'exact' or 'diminishing'")
 
