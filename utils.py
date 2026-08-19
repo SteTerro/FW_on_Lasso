@@ -18,8 +18,9 @@ class plot:
 
         algos = results['algorithm'].unique().tolist()
 
-        if len(color) != len(algos):
-            raise ValueError(f"color must be a list of the same length as the number of algorithms \nLength color: {len(color)}, number of algorithms: {len(algos)}")
+        # ho rimosso questa condizione perche altrimenti non vanno i plot
+        #if len(color) != len(algos):
+         #   raise ValueError(f"color must be a list of the same length as the number of algorithms \nLength color: {len(color)}, number of algorithms: {len(algos)}")
 
         for algo in algos:
             if 'FW_diminishing' == algo:
