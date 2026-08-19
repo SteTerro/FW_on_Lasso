@@ -1,0 +1,93 @@
+from algorithm import FrankWolfeLasso, AwayStepsFrankWolfeLasso, PairwiseFrankWolfeLasso
+from load_utk import load_utkface
+import numpy as np
+import matplotlib.pyplot as plt
+from utils import plot
+import os
+
+TAU = 0.5
+ITER = 1000
+TOLERANCE = 1e-4
+
+print("1. Loading dataset UTKFace...")
+
+# load_utkface() gestisce internamente: campionamento casuale delle immagini,
+# conversione in scala di grigi, resize, flatten in vettori di pixel, split
+# train/test e standardizzazione (fit-only-on-train). A differenza di
+# main_wiki.py, qui NON serve uno StandardScaler manuale nello script
+# principale, perche' load_utkface() lo fa gia' al suo interno.
+data = load_utkface()
+
+X_scaled = data["X_train"]
+y_scaled = data["y_train"]
+
+print(f"X Matrix dimensions: {X_scaled.shape}")
+print(f"y Vector dimensions: {y_scaled.shape}")
+
+print("\n2. Standard Frank-Wolfe execution...")
+FWL = FrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
+fw_fitted = FWL.fit(X_scaled, y_scaled)
+loss_fw, gap_fw, time_fw, spars_fw = FWL.get_history()
+fw_non_zero_weights = FWL.get_number_non_zero_weights()
+fw_weights = FWL.get_non_zero_weights()
+
+print("\n--- STANDARD FW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_fw[0]:.4f}")
+print(f"Final loss: {loss_fw[-1]:.4f}")
+print(f"Final gap: {gap_fw[-1]:.6f}")
+print(f"Selected features: {fw_non_zero_weights} out of {X_scaled.shape[1]}")
+
+print("\n3. Away-Step Frank-Wolfe (AFW) execution...")
+AFWL = AwayStepsFrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
+afw_fitted = AFWL.fit(X_scaled, y_scaled)
+loss_afw, gap_afw, time_afw, spars_afw = AFWL.get_history()
+afw_non_zero_weights = AFWL.get_number_non_zero_weights()
+afw_weights = AFWL.get_non_zero_weights()
+
+print("\n--- AFW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_afw[0]:.4f}")
+print(f"Final loss: {loss_afw[-1]:.4f}")
+print(f"Final gap: {gap_afw[-1]:.6f}")
+print(f"Selected features: {afw_non_zero_weights} out of {X_scaled.shape[1]}")
+
+print("\n4. Pairwise Frank-Wolfe (PFW) execution...")
+PFWL = PairwiseFrankWolfeLasso(tau=TAU, max_iter=ITER, tolerance=TOLERANCE)
+pfw_fitted = PFWL.fit(X_scaled, y_scaled)
+loss_pfw, gap_pfw, time_pfw, spars_pfw = PFWL.get_history()
+pfw_non_zero_weights = PFWL.get_number_non_zero_weights()
+pfw_weights = PFWL.get_non_zero_weights()
+
+print("\n--- PFW RESULTS ---")
+print(f"Initial loss (after 1st vertex): {loss_pfw[0]:.4f}")
+print(f"Final loss: {loss_pfw[-1]:.4f}")
+print(f"Final gap: {gap_pfw[-1]:.6f}")
+print(f"Selected features: {pfw_non_zero_weights} out of {X_scaled.shape[1]}")
+
+# Plotting
+
+print("\n5. Convergence plot generation...")
+
+output_dir = "utk_image"
+os.makedirs(output_dir, exist_ok=True)  # crea la cartella se non esiste ancora
+
+name_1 = f'{output_dir}/1_loss_convergence_utk.png'
+name_2 = f'{output_dir}/2_duality_gap_utk.png'
+name_3 = f'{output_dir}/3_sparsity_utk.png'
+name_4 = f'{output_dir}/4_cpu_time_utk.png'
+name_5 = f'{output_dir}/5_weight_distribution_utk.png'
+
+# Colori per variante (stessi usati in main_wiki.py, per coerenza visiva nel report)
+color_fw = "#48a1e1"
+color_afw = "#ff0ea3"
+color_pfw = "#38d238"
+
+plot.loss(loss_fw, loss_afw, loss_pfw, color_fw, color_afw, color_pfw, name_1)
+plot.duality_gap(gap_fw, gap_afw, gap_pfw, color_fw, color_afw, color_pfw, name_2)
+plot.sparsity(spars_fw, spars_afw, spars_pfw, color_fw, color_afw, color_pfw, name_3)
+plot.efficiency(time_fw, time_afw, time_pfw, gap_fw, gap_afw, gap_pfw, color_fw, color_afw, color_pfw, name_4)
+plot.weight_distr(fw_weights, afw_weights, pfw_weights, color_fw, color_afw, color_pfw, name_5)
+
+# Display plot
+plt.show()
+
+print("Script completed successfully! Graphs have been saved in the project folder.")
