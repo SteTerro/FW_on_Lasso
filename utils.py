@@ -18,7 +18,7 @@ class plot:
 
         algos = results['algorithm'].unique().tolist()
 
-        if len(color) != len(algos):
+        if len(color) < len(algos):
             raise ValueError(f"color must be a list of the same length as the number of algorithms \nLength color: {len(color)}, number of algorithms: {len(algos)}")
 
         for algo in algos:
