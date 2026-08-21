@@ -29,9 +29,9 @@ def build_history_df(algo_name, iters, loss, gap, time, spars, mse, step_size):
 
 
 # Global variables
-TAU = 0.5
+TAU = 1.0
 tau_str = str(TAU).replace('.','p')
-ITER = 200
+ITER = 2000
 TOLERANCE = 1e-4
 # STEP = 'exact'
 
@@ -82,8 +82,8 @@ print("Test targets: ", y_test.shape)
 
 print("\n2. Standardizing X and y...")
 
-X_train = np.concatenate((X_train, X_val), axis=0)
-y_train = np.concatenate((y_train, y_val), axis=0)
+X_train = np.concatenate((X_train, X_val, X_test), axis=0)
+y_train = np.concatenate((y_train, y_val, y_test), axis=0)
 
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
@@ -113,16 +113,16 @@ fw_non_zero_weights_d = FWLD.get_number_non_zero_weights()
 fw_weights_d = FWLD.get_non_zero_weights()
 fw_mse_d = FWLD.mse_score(X_test, y_test)
 
-RESULTS = pd.concat([RESULTS,pd.DataFrame({
-        'run': int(r),
-        'algorithm': 'FW_diminishing',
-        'step_size': 'diminishing',
-        'iter': iter_fw_d,
-        'time': time_fw_d,
-        'loss': loss_fw_d,
-        'gap': gap_fw_d,
-        'spars': spars_fw_d,
-        'mse': mse_fw_d})])
+# RESULTS = pd.concat([RESULTS,pd.DataFrame({
+#         'run': int(r),
+#         'algorithm': 'FW_diminishing',
+#         'step_size': 'diminishing',
+#         'iter': iter_fw_d,
+#         'time': time_fw_d,
+#         'loss': loss_fw_d,
+#         'gap': gap_fw_d,
+#         'spars': spars_fw_d,
+#         'mse': mse_fw_d})])
 
 print("\n3.B. Standard Frank-Wolfe execution (exact step)...")
 FWLE = FrankWolfeLasso(tau=TAU, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -151,16 +151,16 @@ afw_non_zero_weights_d = AFWLD.get_number_non_zero_weights()
 afw_weights_d = AFWLD.get_non_zero_weights()
 afw_mse_d = AFWLD.mse_score(X_test, y_test)
 
-RESULTS = pd.concat([RESULTS,pd.DataFrame({
-        'run': int(r),
-        'algorithm': 'AFW_diminishing',
-        'step_size': 'diminishing',
-        'iter': iter_afw_d,
-        'time': time_afw_d,
-        'loss': loss_afw_d,
-        'gap': gap_afw_d,
-        'spars': spars_afw_d,
-        'mse': mse_afw_d})])
+# RESULTS = pd.concat([RESULTS,pd.DataFrame({
+#         'run': int(r),
+#         'algorithm': 'AFW_diminishing',
+#         'step_size': 'diminishing',
+#         'iter': iter_afw_d,
+#         'time': time_afw_d,
+#         'loss': loss_afw_d,
+#         'gap': gap_afw_d,
+#         'spars': spars_afw_d,
+#         'mse': mse_afw_d})])
 
 print("\n4.B. Away-Step Frank-Wolfe (AFW) execution (exact step)...")
 AFWLE = AwayStepsFrankWolfeLasso(tau=TAU, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -189,16 +189,16 @@ pfw_non_zero_weights_d = PFWLD.get_number_non_zero_weights()
 pfw_weights_d = PFWLD.get_non_zero_weights()
 pfw_mse_d = PFWLD.mse_score(X_test, y_test)
 
-RESULTS = pd.concat([RESULTS,pd.DataFrame({
-        'run': int(r),
-        'algorithm': 'PFW_diminishing',
-        'step_size': 'diminishing',
-        'iter': iter_pfw_d,
-        'time': time_pfw_d,
-        'loss': loss_pfw_d,
-        'gap': gap_pfw_d,
-        'spars': spars_pfw_d,
-        'mse': mse_pfw_d})])
+# RESULTS = pd.concat([RESULTS,pd.DataFrame({
+#         'run': int(r),
+#         'algorithm': 'PFW_diminishing',
+#         'step_size': 'diminishing',
+#         'iter': iter_pfw_d,
+#         'time': time_pfw_d,
+#         'loss': loss_pfw_d,
+#         'gap': gap_pfw_d,
+#         'spars': spars_pfw_d,
+#         'mse': mse_pfw_d})])
 
 print("\n5.B Pairwise Frank-Wolfe (PFW) execution (exact step)...")
 PFWLE = PairwiseFrankWolfeLasso(tau=TAU, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -208,26 +208,26 @@ pfw_non_zero_weights_e = PFWLE.get_number_non_zero_weights()
 pfw_weights_e = PFWLE.get_non_zero_weights()
 pfw_mse_e = PFWLE.mse_score(X_test, y_test)
 
-# RESULTS = pd.concat([RESULTS, pd.DataFrame({
-#         'run': int(r),
-#         'algorithm': 'PFW_exact',
-#         'step_size': 'exact',
-#         'iter': iter_pfw_e,
-#         'time': time_pfw_e,
-#         'loss': loss_pfw_e,
-#         'gap': gap_pfw_e,
-#         'spars': spars_pfw_e,
-#         'mse': mse_pfw_e})])
+RESULTS = pd.concat([RESULTS, pd.DataFrame({
+        'run': int(r),
+        'algorithm': 'PFW_exact',
+        'step_size': 'exact',
+        'iter': iter_pfw_e,
+        'time': time_pfw_e,
+        'loss': loss_pfw_e,
+        'gap': gap_pfw_e,
+        'spars': spars_pfw_e,
+        'mse': mse_pfw_e})])
 
 print("GENERAL RESULTS")
-print(f"{'Algorithm':<20} {'Time':<15} {'Iter':<15} {'Final Loss':<15} {'Final Gap':<15} {'Selected Features':<15} {'MSE':<15}")
-print("-" * 107)
-print(f"{str('FW_exact'):<20} {time_fw_e[-1]:<15.4f} {iter_fw_e[-1]:<15.4f} {loss_fw_e[-1]:<15.4f} {gap_fw_e[-1]:<15.4f} {spars_fw_e[-1]:<15.4f} {mse_fw_e[-1]:<15.4f}")
-print(f"{str('FW_diminishing'):<20} {time_fw_d[-1]:<15.4f} {iter_fw_d[-1]:<15.4f} {loss_fw_d[-1]:<15.4f} {gap_fw_d[-1]:<15.4f} {spars_fw_d[-1]:<15.4f} {mse_fw_d[-1]:<15.4f}")
-print(f"{str('AFW_exact'):<20} {time_afw_e[-1]:<15.4f} {iter_afw_e[-1]:<15.4f} {loss_afw_e[-1]:<15.4f} {gap_afw_e[-1]:<15.4f} {spars_afw_e[-1]:<15.4f} {mse_afw_e[-1]:<15.4f}")
-print(f"{str('AFW_diminishing'):<20} {time_afw_d[-1]:<15.4f} {iter_afw_d[-1]:<15.4f} {loss_afw_d[-1]:<15.4f} {gap_afw_d[-1]:<15.4f} {spars_afw_d[-1]:<15.4f} {mse_afw_d[-1]:<15.4f}")
-print(f"{str('PFW_exact'):<20} {time_pfw_e[-1]:<15.4f} {iter_pfw_e[-1]:<15.4f} {loss_pfw_e[-1]:<15.4f} {gap_pfw_e[-1]:<15.4f} {spars_pfw_e[-1]:<15.4f} {mse_pfw_e[-1]:<15.4f}")
-print(f"{str('PFW_diminishing'):<20} {time_pfw_d[-1]:<15.4f} {iter_pfw_d[-1]:<15.4f} {loss_pfw_d[-1]:<15.4f} {gap_pfw_d[-1]:<15.4f} {spars_pfw_d[-1]:<15.4f} {mse_pfw_d[-1]:<15.4f}")
+print(f"{'Algorithm':<20} {'Time':<15} {'Iter':<15} {'Final Loss':<15} {'Final Gap':<15} {'Sel. Features':<15} {'MSE':<10} {'Non Zero W':<15}")
+print("-" * 117)
+print(f"{str('FW_exact'):<20} {time_fw_e[-1]:<15.4f} {iter_fw_e[-1]:<15.4f} {loss_fw_e[-1]:<15.4f} {gap_fw_e[-1]:<15.6f} {spars_fw_e[-1]:<15.4f} {mse_fw_e[-1]:<10.4f} {len(fw_weights_e):<15.4f}")
+print(f"{str('FW_diminishing'):<20} {time_fw_d[-1]:<15.4f} {iter_fw_d[-1]:<15.4f} {loss_fw_d[-1]:<15.4f} {gap_fw_d[-1]:<15.6f} {spars_fw_d[-1]:<15.4f} {mse_fw_d[-1]:<10.4f} {len(fw_weights_d):<15.4f}")
+print(f"{str('AFW_exact'):<20} {time_afw_e[-1]:<15.4f} {iter_afw_e[-1]:<15.4f} {loss_afw_e[-1]:<15.4f} {gap_afw_e[-1]:<15.6f} {spars_afw_e[-1]:<15.4f} {mse_afw_e[-1]:<10.4f} {len(afw_weights_e):<15.4f}")
+print(f"{str('AFW_diminishing'):<20} {time_afw_d[-1]:<15.4f} {iter_afw_d[-1]:<15.4f} {loss_afw_d[-1]:<15.4f} {gap_afw_d[-1]:<15.6f} {spars_afw_d[-1]:<15.4f} {mse_afw_d[-1]:<10.4f} {len(afw_weights_d):<15.4f}")
+print(f"{str('PFW_exact'):<20} {time_pfw_e[-1]:<15.4f} {iter_pfw_e[-1]:<15.4f} {loss_pfw_e[-1]:<15.4f} {gap_pfw_e[-1]:<15.4f} {spars_pfw_e[-1]:<15.4f} {mse_pfw_e[-1]:<10.4f} {len(pfw_weights_e):<15.4f}")
+print(f"{str('PFW_diminishing'):<20} {time_pfw_d[-1]:<15.4f} {iter_pfw_d[-1]:<15.4f} {loss_pfw_d[-1]:<15.4f} {gap_pfw_d[-1]:<15.6f} {spars_pfw_d[-1]:<15.4f} {mse_pfw_d[-1]:<10.4f} {len(pfw_weights_d):<15.4f}")
 
 print(f"Running Algo: {RESULTS['algorithm'].unique()}")
 
@@ -261,24 +261,24 @@ name_4 = f'image/6_mse_FW_{ITER}_{tau_str}'
 
 plotter = plot()
 # plotter.loss(RESULTS, 'iter', False, name = f"{name_1}.png", plotted = PLOT)
-plotter.duality_gap(RESULTS, 'iter', False, name = f"{name_2}.png", plotted = PLOT)
+# plotter.duality_gap(RESULTS, 'iter', False, name = f"{name_2}.png", plotted = PLOT)
 # plotter.sparsity(RESULTS, 'iter', False, name = f"{name_3}.png", plotted = PLOT)
-# plotter.mse(RESULTS, 'iter', False, name = f"{name_4}.png", plotted = PLOT)
+plotter.mse(RESULTS, 'iter', False, name = f"{name_4}.png", plotted = PLOT)
 
 # plotter.loss(RESULTS, 'iter', True, name = f"{name_1}_log.png", plotted = PLOT)
-plotter.duality_gap(RESULTS, 'iter', True, name = f"{name_2}_log.png", plotted = PLOT)
+# plotter.duality_gap(RESULTS, 'iter', True, name = f"{name_2}_log.png", plotted = PLOT)
 # plotter.sparsity(RESULTS, 'iter', True, name = f"{name_3}_log.png", plotted = PLOT)
-# plotter.mse(RESULTS, 'iter', True, name = f"{name_4}_log.png", plotted = PLOT)
+plotter.mse(RESULTS, 'iter', True, name = f"{name_4}_log.png", plotted = PLOT)
 
 # plotter.loss(RESULTS, 'time', False, name = f"{name_1}_time.png", plotted = PLOT)
 # plotter.duality_gap(RESULTS, 'time', False, name = f"{name_2}_time.png", plotted = PLOT)
 # plotter.sparsity(RESULTS, 'time', False, name = f"{name_3}_time.png", plotted = PLOT)
-# plotter.mse(RESULTS, 'time', False, name = f"{name_4}_time.png", plotted = PLOT)
+plotter.mse(RESULTS, 'time', False, name = f"{name_4}_time.png", plotted = PLOT)
 
 # plotter.loss(RESULTS, 'time', True, name = f"{name_1}_time_log.png", plotted = PLOT)
 # plotter.duality_gap(RESULTS, 'time', True, name = f"{name_2}_time_log.png", plotted = PLOT)
 # plotter.sparsity(RESULTS, 'time', True, name = f"{name_3}_time_log.png", plotted = PLOT)
-# plotter.mse(RESULTS, 'time', True, name = f"{name_4}_time_log.png", plotted = PLOT)
+plotter.mse(RESULTS, 'time', True, name = f"{name_4}_time_log.png", plotted = PLOT)
 
 # if PLOT:
 #     plt.show()

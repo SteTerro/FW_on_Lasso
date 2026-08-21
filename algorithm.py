@@ -115,8 +115,21 @@ class FrankWolfeLasso:
                     gamma = np.clip(opt_alpha, 0.0, 1.0)
             elif self.step_size == 'diminishing':
                 gamma = min(2.0 / (t + 2.0), 1.0)
+            elif self.step_size == 'backtracking':
+                # Armijo backtracking line search
+                beta = 0.5   # shrink factor
+                sigma = 0.1  # sufficient decrease parameter
+                gamma = 1.0
+                current_loss = 0.5 * np.sum(self.residual ** 2)
+                dir_dot_grad = -gap  # <grad, d> = <grad, s - x_t> = -gap
+                for _ in range(30):
+                    new_residual = self.residual + gamma * Xd
+                    new_loss = 0.5 * np.sum(new_residual ** 2)
+                    if new_loss <= current_loss + sigma * gamma * dir_dot_grad:
+                        break
+                    gamma *= beta
             else:
-                raise ValueError("step_size must be either 'exact' or 'diminishing'")
+                raise ValueError("step_size must be 'exact', 'diminishing', or 'backtracking'")
             
             # Update x_t
             self.x_t *= (1 - gamma)
@@ -170,7 +183,7 @@ class AwayStepsFrankWolfeLasso:
     def mse_score(self, X, y):
         y_pred = self.predict(X)
         return np.mean((np.asarray(y) - y_pred) ** 2)
-    
+
     def fit(self, X, y):
         n_samples, n_features = X.shape
         self.x_t = np.zeros(n_features) 
@@ -238,7 +251,7 @@ class AwayStepsFrankWolfeLasso:
                 Xd = (self.residual + y) - X_v
                 dir_dot_grad = -away_gap
 
-            # EXACT LINE SEARCH
+            # LINE SEARCH
             if self.step_size == 'exact':
                 den = np.sum(Xd ** 2)
                 if den < 1e-10:
@@ -249,8 +262,21 @@ class AwayStepsFrankWolfeLasso:
             elif self.step_size == 'diminishing':
                 gamma = 2.0 / (i + 2.0)
                 alpha = min(gamma, alpha_max)
+            elif self.step_size == 'backtracking':
+                # Armijo backtracking line search
+                beta = 0.5
+                sigma = 0.1
+                alpha = alpha_max
+                current_loss = 0.5 * np.sum(self.residual ** 2)
+                for _ in range(30):
+                    new_residual = self.residual + alpha * Xd
+                    new_loss = 0.5 * np.sum(new_residual ** 2)
+                    if new_loss <= current_loss + sigma * alpha * dir_dot_grad:
+                        break
+                    alpha *= beta
+                alpha = min(alpha, alpha_max)
             else:
-                raise ValueError("step_size must be either 'exact' or 'diminishing'")
+                raise ValueError("step_size must be 'exact', 'diminishing', or 'backtracking'")
 
             # UPDATE x and residual
             if is_fw_step:
@@ -273,15 +299,11 @@ class AwayStepsFrankWolfeLasso:
                     self.weights[key] = (1 + alpha) * self.weights[key]
                 self.weights[v_key] -= alpha
 
-            # DROP STEP
-            for key in list(self.weights.keys()):
-                if self.weights[key] < 0:
-                    self.weights[key] = 0.0
-            
-            to_drop = [k for k, v in self.weights.items() if v < 1e-10]
+            # DROP STEP — unified tolerance cleanup
+            to_drop = [k for k, v in self.weights.items() if v < self.w_tolerance]
             for k in to_drop:
                 del self.weights[k]
-
+            
             self.update_history(fw_gap, t0, i)
 
         return self.x_t
@@ -355,7 +377,9 @@ class PairwiseFrankWolfeLasso:
             # 3. AWAY VERTEX (v_t)
             max_val = -np.inf
             v_key = None
-            for key in self.weights.keys():
+            for key, weight in self.weights.items():
+                if weight <= self.w_tolerance:
+                    continue
                 idx, sign = key
                 val = grad[idx] * sign * self.tau 
                 if val > max_val:
@@ -384,7 +408,7 @@ class PairwiseFrankWolfeLasso:
                     
             alpha_max = self.weights[v_key]
 
-            # 6. EXACT LINE SEARCH
+            # 6. LINE SEARCH
             if self.step_size == 'exact':
                 den = np.sum(Xd ** 2)
                 if den < 1e-10:
@@ -395,8 +419,21 @@ class PairwiseFrankWolfeLasso:
             elif self.step_size == 'diminishing':
                 gamma = 2.0 / (i + 2.0)
                 alpha = min(gamma, alpha_max)
+            elif self.step_size == 'backtracking':
+                # Armijo backtracking line search
+                beta = 0.5
+                sigma = 0.1
+                alpha = alpha_max
+                current_loss = 0.5 * np.sum(self.residual ** 2)
+                for _ in range(30):
+                    new_residual = self.residual + alpha * Xd
+                    new_loss = 0.5 * np.sum(new_residual ** 2)
+                    if new_loss <= current_loss + sigma * alpha * dir_dot_grad:
+                        break
+                    alpha *= beta
+                alpha = min(alpha, alpha_max)
             else:
-                raise ValueError("step_size must be either 'exact' or 'diminishing'")
+                raise ValueError("step_size must be 'exact', 'diminishing', or 'backtracking'")
 
             # 7. UPDATE x and residual
             self.x_t[s_idx] += alpha * (s_sign * self.tau)
@@ -407,12 +444,8 @@ class PairwiseFrankWolfeLasso:
             self.weights[v_key] -= alpha
             self.weights[s_key] = self.weights.get(s_key, 0.0) + alpha
 
-            # 9. DROP STEP
-            for key in list(self.weights.keys()):
-                if self.weights[key] < 0:
-                    self.weights[key] = 0.0
-            
-            to_drop = [k for k, v in self.weights.items() if v < 1e-10]
+            # 9. DROP STEP — unified tolerance cleanup
+            to_drop = [k for k, v in self.weights.items() if v < self.w_tolerance]
             for k in to_drop:
                 del self.weights[k]
 
