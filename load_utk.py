@@ -110,9 +110,9 @@ def load_utkface(
         X_train = (X_train - mu_X) / sigma_X
         X_test = (X_test - mu_X) / sigma_X
 
-        mu_y = y_train.mean()
-        y_train = y_train - mu_y
-        y_test = y_test - mu_y
+        mu_y, sigma_y = y_train.mean(), y_train.std()
+        y_train = (y_train - mu_y)/sigma_y
+        y_test = (y_test - mu_y)/sigma_y
 
     return {
         "X_train": X_train,
