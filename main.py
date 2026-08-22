@@ -45,8 +45,8 @@ RUN_label = None
 results_folder = 'results/'
 
 # file_name = 'data/slice.csv' 
-file_name = 'data/riboflavin.csv' 
-# file_name = 'data/wikivital_mathematics.json'
+# file_name = 'data/riboflavin.csv' 
+file_name = 'data/wikivital_mathematics.json'
 
 RESULTS = pd.DataFrame({
         'run': [],

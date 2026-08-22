@@ -30,10 +30,10 @@ def build_history_df(algo_name, iters, loss, gap, time, spars, mse, step_size):
 
 
 # Global variables
-#TAU = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5] 
-TAU = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 ] #, 2.0, 3.0, 4.0, 5.0, 6, 7, 8, 9, 10]
+TAU = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 2, 3, 4, 5, 6, 8, 9, 10] 
+# TAU = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 ] #, 2.0, 3.0, 4.0, 5.0, 6, 7, 8, 9, 10]
 # tau_str = str(TAU).replace('.','p')
-ITER = 100
+ITER = 2000000
 TOLERANCE = 1e-4
 # STEP = 'exact'
 
@@ -47,8 +47,8 @@ RUN_label = None
 results_folder = 'results/'
 
 # file_name = 'data/slice.csv' 
-file_name = 'data/riboflavin.csv' 
-# file_name = 'data/wikivital_mathematics.json'
+# file_name = 'data/riboflavin.csv' 
+file_name = 'data/wikivital_mathematics.json'
 
 RESULTS = pd.DataFrame({
         'run': [],
@@ -88,6 +88,11 @@ X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=(0.1
 # X_train = np.concatenate((X_train, X_val), axis=0)
 # y_train = np.concatenate((y_train, y_val), axis=0)
 
+X_train = np.concatenate((X_train, X_val, X_test), axis=0)
+y_train = np.concatenate((y_train, y_val, y_test), axis=0)
+X_test = X_train
+y_test = y_train
+
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_val = scaler.transform(X_val)
@@ -119,24 +124,24 @@ for T in TAU:
     # print(f"L1 Radius (Tau) set to: {T}")
 
     # print("\n3.A. Standard Frank-Wolfe execution (diminishing step)...")
-    FWLD = FrankWolfeLasso(tau=T, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
-    fw_fitted_d = FWLD.fit(X_train, y_train)
-    loss_fw_d, gap_fw_d, time_fw_d, spars_fw_d, mse_fw_d, iter_fw_d = FWLD.get_history()
-    fw_non_zero_weights_d = FWLD.get_number_non_zero_weights()
-    fw_weights_d = FWLD.get_non_zero_weights()
-    fw_mse_d = FWLD.mse_score(X_test, y_test)
+    # FWLD = FrankWolfeLasso(tau=T, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
+    # fw_fitted_d = FWLD.fit(X_train, y_train)
+    # loss_fw_d, gap_fw_d, time_fw_d, spars_fw_d, mse_fw_d, iter_fw_d = FWLD.get_history()
+    # fw_non_zero_weights_d = FWLD.get_number_non_zero_weights()
+    # fw_weights_d = FWLD.get_non_zero_weights()
+    # fw_mse_d = FWLD.mse_score(X_test, y_test)
 
-    RESULTS = pd.concat([RESULTS,pd.DataFrame({
-            'run': [int(r)],
-            'algorithm': ['FW_diminishing'],
-            'step_size': ['diminishing'],
-            'iter': [iter_fw_d[-1]],
-            'time': [time_fw_d[-1]],
-            'loss': [loss_fw_d[-1]],
-            'gap': [gap_fw_d[-1]],
-            'spars': [spars_fw_d[-1]],
-            'mse': [mse_fw_d[-1]],
-            'tau': [T]})])
+    # RESULTS = pd.concat([RESULTS,pd.DataFrame({
+    #         'run': [int(r)],
+    #         'algorithm': ['FW_diminishing'],
+    #         'step_size': ['diminishing'],
+    #         'iter': [iter_fw_d[-1]],
+    #         'time': [time_fw_d[-1]],
+    #         'loss': [loss_fw_d[-1]],
+    #         'gap': [gap_fw_d[-1]],
+    #         'spars': [spars_fw_d[-1]],
+    #         'mse': [mse_fw_d[-1]],
+    #         'tau': [T]})])
 
     # print("\n3.B. Standard Frank-Wolfe execution (exact step)...")
     FWLE = FrankWolfeLasso(tau=T, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -159,24 +164,24 @@ for T in TAU:
             'tau': [T]})])
 
     # print("\n4.A. Away-Step Frank-Wolfe (AFW) execution (diminishing step)...")
-    AFWLD = AwayStepsFrankWolfeLasso(tau=T, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
-    afw_fittet_d = AFWLD.fit(X_train, y_train)
-    loss_afw_d, gap_afw_d, time_afw_d, spars_afw_d, mse_afw_d, iter_afw_d = AFWLD.get_history()
-    afw_non_zero_weights_d = AFWLD.get_number_non_zero_weights()
-    afw_weights_d = AFWLD.get_non_zero_weights()
-    afw_mse_d = AFWLD.mse_score(X_test, y_test)
+    # AFWLD = AwayStepsFrankWolfeLasso(tau=T, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
+    # afw_fittet_d = AFWLD.fit(X_train, y_train)
+    # loss_afw_d, gap_afw_d, time_afw_d, spars_afw_d, mse_afw_d, iter_afw_d = AFWLD.get_history()
+    # afw_non_zero_weights_d = AFWLD.get_number_non_zero_weights()
+    # afw_weights_d = AFWLD.get_non_zero_weights()
+    # afw_mse_d = AFWLD.mse_score(X_test, y_test)
 
-    RESULTS = pd.concat([RESULTS,pd.DataFrame({
-            'run': [int(r)],
-            'algorithm': ['AFW_diminishing'],
-            'step_size': ['diminishing'],
-            'iter': [iter_afw_d[-1]],
-            'time': [time_afw_d[-1]],
-            'loss': [loss_afw_d[-1]],
-            'gap': [gap_afw_d[-1]],
-            'spars': [spars_afw_d[-1]],
-            'mse': [mse_afw_d[-1]],
-            'tau': [T]})])
+    # RESULTS = pd.concat([RESULTS,pd.DataFrame({
+    #         'run': [int(r)],
+    #         'algorithm': ['AFW_diminishing'],
+    #         'step_size': ['diminishing'],
+    #         'iter': [iter_afw_d[-1]],
+    #         'time': [time_afw_d[-1]],
+    #         'loss': [loss_afw_d[-1]],
+    #         'gap': [gap_afw_d[-1]],
+    #         'spars': [spars_afw_d[-1]],
+    #         'mse': [mse_afw_d[-1]],
+    #         'tau': [T]})])
 
     # print("\n4.B. Away-Step Frank-Wolfe (AFW) execution (exact step)...")
     AFWLE = AwayStepsFrankWolfeLasso(tau=T, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -199,24 +204,24 @@ for T in TAU:
             'tau': [T]})])
 
     # print("\n5.A Pairwise Frank-Wolfe (PFW) execution (diminishing step)...")
-    PFWLD = PairwiseFrankWolfeLasso(tau=T, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
-    pfw_fitted_d = PFWLD.fit(X_train, y_train)
-    loss_pfw_d, gap_pfw_d, time_pfw_d, spars_pfw_d, mse_pfw_d, iter_pfw_d = PFWLD.get_history()
-    pfw_non_zero_weights_d = PFWLD.get_number_non_zero_weights()
-    pfw_weights_d = PFWLD.get_non_zero_weights()
-    pfw_mse_d = PFWLD.mse_score(X_test, y_test)
+    # PFWLD = PairwiseFrankWolfeLasso(tau=T, step_size='diminishing', max_iter=ITER, tolerance=TOLERANCE)
+    # pfw_fitted_d = PFWLD.fit(X_train, y_train)
+    # loss_pfw_d, gap_pfw_d, time_pfw_d, spars_pfw_d, mse_pfw_d, iter_pfw_d = PFWLD.get_history()
+    # pfw_non_zero_weights_d = PFWLD.get_number_non_zero_weights()
+    # pfw_weights_d = PFWLD.get_non_zero_weights()
+    # pfw_mse_d = PFWLD.mse_score(X_test, y_test)
 
-    RESULTS = pd.concat([RESULTS,pd.DataFrame({
-            'run': [int(r)],
-            'algorithm': ['PFW_diminishing'],
-            'step_size': ['diminishing'],
-            'iter': [iter_pfw_d[-1]],
-            'time': [time_pfw_d[-1]],
-            'loss': [loss_pfw_d[-1]],
-            'gap': [gap_pfw_d[-1]],
-            'spars': [spars_pfw_d[-1]],
-            'mse': [mse_pfw_d[-1]],
-            'tau': [T]})])
+    # RESULTS = pd.concat([RESULTS,pd.DataFrame({
+    #         'run': [int(r)],
+    #         'algorithm': ['PFW_diminishing'],
+    #         'step_size': ['diminishing'],
+    #         'iter': [iter_pfw_d[-1]],
+    #         'time': [time_pfw_d[-1]],
+    #         'loss': [loss_pfw_d[-1]],
+    #         'gap': [gap_pfw_d[-1]],
+    #         'spars': [spars_pfw_d[-1]],
+    #         'mse': [mse_pfw_d[-1]],
+    #         'tau': [T]})])
 
     # print("\n5.B Pairwise Frank-Wolfe (PFW) execution (exact step)...")
     PFWLE = PairwiseFrankWolfeLasso(tau=T, step_size='exact', max_iter=ITER, tolerance=TOLERANCE)
@@ -238,22 +243,22 @@ for T in TAU:
             'mse': [mse_pfw_e[-1]],
             'tau': [T]})])
 
-    FW_d_list.append(loss_fw_d[-1])
-    FW_e_list.append(loss_fw_e[-1])
-    AFW_d_list.append(loss_afw_d[-1])
-    AFW_e_list.append(loss_afw_e[-1])
-    PFW_d_list.append(loss_pfw_d[-1])
-    PFW_e_list.append(loss_pfw_e[-1])
+    # FW_d_list.append(loss_fw_d[-1])
+    FW_e_list.append(iter_fw_e[-1])
+    # AFW_d_list.append(loss_afw_d[-1])
+    AFW_e_list.append(iter_afw_e[-1])
+    # PFW_d_list.append(loss_pfw_d[-1])
+    PFW_e_list.append(iter_pfw_e[-1])
 
     print(f"\nGENERAL RESULTS FOR TAU = {T}")
     print(f"{'Algorithm':<20} {'Time':<15} {'Iter':<15} {'Final Loss':<15} {'Final Gap':<15} {'Selected Features':<15} {'MSE':<15}")
     print("-" * 107)
     print(f"{str('FW_exact'):<20} {time_fw_e[-1]:<15.4f} {iter_fw_e[-1]:<15.4f} {loss_fw_e[-1]:<15.4f} {gap_fw_e[-1]:<15.4f} {spars_fw_e[-1]:<15.4f} {mse_fw_e[-1]:<15.4f}")
-    print(f"{str('FW_diminishing'):<20} {time_fw_d[-1]:<15.4f} {iter_fw_d[-1]:<15.4f} {loss_fw_d[-1]:<15.4f} {gap_fw_d[-1]:<15.4f} {spars_fw_d[-1]:<15.4f} {mse_fw_d[-1]:<15.4f}")
+    # print(f"{str('FW_diminishing'):<20} {time_fw_d[-1]:<15.4f} {iter_fw_d[-1]:<15.4f} {loss_fw_d[-1]:<15.4f} {gap_fw_d[-1]:<15.4f} {spars_fw_d[-1]:<15.4f} {mse_fw_d[-1]:<15.4f}")
     print(f"{str('AFW_exact'):<20} {time_afw_e[-1]:<15.4f} {iter_afw_e[-1]:<15.4f} {loss_afw_e[-1]:<15.4f} {gap_afw_e[-1]:<15.4f} {spars_afw_e[-1]:<15.4f} {mse_afw_e[-1]:<15.4f}")
-    print(f"{str('AFW_diminishing'):<20} {time_afw_d[-1]:<15.4f} {iter_afw_d[-1]:<15.4f} {loss_afw_d[-1]:<15.4f} {gap_afw_d[-1]:<15.4f} {spars_afw_d[-1]:<15.4f} {mse_afw_d[-1]:<15.4f}")
+    # print(f"{str('AFW_diminishing'):<20} {time_afw_d[-1]:<15.4f} {iter_afw_d[-1]:<15.4f} {loss_afw_d[-1]:<15.4f} {gap_afw_d[-1]:<15.4f} {spars_afw_d[-1]:<15.4f} {mse_afw_d[-1]:<15.4f}")
     print(f"{str('PFW_exact'):<20} {time_pfw_e[-1]:<15.4f} {iter_pfw_e[-1]:<15.4f} {loss_pfw_e[-1]:<15.4f} {gap_pfw_e[-1]:<15.4f} {spars_pfw_e[-1]:<15.4f} {mse_pfw_e[-1]:<15.4f}")
-    print(f"{str('PFW_diminishing'):<20} {time_pfw_d[-1]:<15.4f} {iter_pfw_d[-1]:<15.4f} {loss_pfw_d[-1]:<15.4f} {gap_pfw_d[-1]:<15.4f} {spars_pfw_d[-1]:<15.4f} {mse_pfw_d[-1]:<15.4f}")
+    # print(f"{str('PFW_diminishing'):<20} {time_pfw_d[-1]:<15.4f} {iter_pfw_d[-1]:<15.4f} {loss_pfw_d[-1]:<15.4f} {gap_pfw_d[-1]:<15.4f} {spars_pfw_d[-1]:<15.4f} {mse_pfw_d[-1]:<15.4f}")
 
     print(f"Running Algo: {RESULTS['algorithm'].unique()}")
 
@@ -284,31 +289,31 @@ print("\n6. Convergence plot generation...")
 
 color = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#CC79A7']
 plt.figure(figsize=(8, 6))
-plt.plot(TAU, FW_d_list, label='Standard FW (diminishing)', color=color[0], linewidth=1.5, linestyle='--')
+# plt.plot(TAU, FW_d_list, label='Standard FW (diminishing)', color=color[0], linewidth=1.5, linestyle='--')
 plt.plot(TAU, FW_e_list, label='Standard FW (exact)', color=color[1], linewidth=1.5)
-plt.plot(TAU, AFW_d_list, label='Away-Step FW (diminishing)', color=color[2], linewidth=1.5, linestyle='--')
+# plt.plot(TAU, AFW_d_list, label='Away-Step FW (diminishing)', color=color[2], linewidth=1.5, linestyle='--')
 plt.plot(TAU, AFW_e_list, label='Away-Step FW (exact)', color=color[3], linewidth=1.5)
-plt.plot(TAU, PFW_d_list, label='Pairwise FW (diminishing)', color=color[4], linewidth=1.5, linestyle='--')
+# plt.plot(TAU, PFW_d_list, label='Pairwise FW (diminishing)', color=color[4], linewidth=1.5, linestyle='--')
 plt.plot(TAU, PFW_e_list, label='Pairwise FW (exact)', color=color[5], linewidth=1.5)
 
 for i in range(len(TAU)):
-    if FW_d_list[i] < 1e-4:
-        plt.scatter(TAU[i], FW_d_list[i], color=color[0], linewidth=1.5, marker='x', s=100)
+    # if FW_d_list[i] < 1e-4:
+    #     plt.scatter(TAU[i], FW_d_list[i], color=color[0], linewidth=1.5, marker='x', s=100)
     if FW_e_list[i] < 1e-4:
         plt.scatter(TAU[i], FW_e_list[i], color=color[1], linewidth=1.5, marker='x', s=100)
-    if AFW_d_list[i] < 1e-4:
-        plt.scatter(TAU[i], AFW_d_list[i], color=color[2], linewidth=1.5, marker='x', s=100)
+    # if AFW_d_list[i] < 1e-4:
+        # plt.scatter(TAU[i], AFW_d_list[i], color=color[2], linewidth=1.5, marker='x', s=100)
     if AFW_e_list[i] < 1e-4:
         plt.scatter(TAU[i], AFW_e_list[i], color=color[3], linewidth=1.5, marker='x', s=100)
-    if PFW_d_list[i] < 1e-4:
-        plt.scatter(TAU[i], PFW_d_list[i], color=color[4], linewidth=1.5, marker='x', s=100)
+    # if PFW_d_list[i] < 1e-4:
+        # plt.scatter(TAU[i], PFW_d_list[i], color=color[4], linewidth=1.5, marker='x', s=100)
     if PFW_e_list[i] < 1e-4: 
         plt.scatter(TAU[i], PFW_e_list[i], color=color[5], linewidth=1.5, marker='x', s=100)
 
-plt.title('Objective Value vs Tau')
+plt.title('Iterations until convergence vs Tau')
 plt.xlabel('Tau')
 
-plt.ylabel('Objective Value')
+plt.ylabel('Iterations')
 
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
@@ -317,31 +322,31 @@ plt.tight_layout()
 # plt.close()
 
 plt.figure(figsize=(8, 6))
-plt.plot(TAU, FW_d_list, label='Standard FW (diminishing)', color=color[0], linewidth=1.5, linestyle='--')
+# plt.plot(TAU, FW_d_list, label='Standard FW (diminishing)', color=color[0], linewidth=1.5, linestyle='--')
 plt.plot(TAU, FW_e_list, label='Standard FW (exact)', color=color[1], linewidth=1.5)
-plt.plot(TAU, AFW_d_list, label='Away-Step FW (diminishing)', color=color[2], linewidth=1.5, linestyle='--')
+# plt.plot(TAU, AFW_d_list, label='Away-Step FW (diminishing)', color=color[2], linewidth=1.5, linestyle='--')
 plt.plot(TAU, AFW_e_list, label='Away-Step FW (exact)', color=color[3], linewidth=1.5)
-plt.plot(TAU, PFW_d_list, label='Pairwise FW (diminishing)', color=color[4], linewidth=1.5, linestyle='--')
+# plt.plot(TAU, PFW_d_list, label='Pairwise FW (diminishing)', color=color[4], linewidth=1.5, linestyle='--')
 plt.plot(TAU, PFW_e_list, label='Pairwise FW (exact)', color=color[5], linewidth=1.5)
 
 for i in range(len(TAU)):
-    if FW_d_list[i] < 1e-4:
-        plt.scatter(TAU[i], FW_d_list[i], color=color[0], linewidth=1.5, marker='x', s=100)
+    # if FW_d_list[i] < 1e-4:
+        # plt.scatter(TAU[i], FW_d_list[i], color=color[0], linewidth=1.5, marker='x', s=100)
     if FW_e_list[i] < 1e-4:
         plt.scatter(TAU[i], FW_e_list[i], color=color[1], linewidth=1.5, marker='x', s=100)
-    if AFW_d_list[i] < 1e-4:
+    # if AFW_d_list[i] < 1e-4:
         plt.scatter(TAU[i], AFW_d_list[i], color=color[2], linewidth=1.5, marker='x', s=100)
     if AFW_e_list[i] < 1e-4:
         plt.scatter(TAU[i], AFW_e_list[i], color=color[3], linewidth=1.5, marker='x', s=100)
-    if PFW_d_list[i] < 1e-4:
-        plt.scatter(TAU[i], PFW_d_list[i], color=color[4], linewidth=1.5, marker='x', s=100)
+    # if PFW_d_list[i] < 1e-4:
+        # plt.scatter(TAU[i], PFW_d_list[i], color=color[4], linewidth=1.5, marker='x', s=100)
     if PFW_e_list[i] < 1e-4: 
         plt.scatter(TAU[i], PFW_e_list[i], color=color[5], linewidth=1.5, marker='x', s=100)
 
-plt.title('Objective Value vs Tau')
+plt.title('Iterations until convergence vs Tau')
 plt.xlabel('Tau')
 
-plt.ylabel('Objective Value (Log Scale)')
+plt.ylabel('Iterations (Log Scale)')
 plt.yscale('log')
 
 plt.legend()
@@ -363,5 +368,5 @@ plt.tight_layout()
 # plt.grid(True, linestyle='--', alpha=0.7)
 # plt.tight_layout()
 
-# plt.show()
+plt.show()
 # plt.close()
